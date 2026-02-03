@@ -1,0 +1,5 @@
+{
+  "name": "AcademiaHub",
+  "description": "A role-based academic content management system for students and administrators to manage assignments, notes, and lab manuals using Supabase.",
+  "requestFramePermissions": []
+}
