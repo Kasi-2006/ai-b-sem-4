@@ -7,36 +7,33 @@ import AdminDashboard from './components/AdminDashboard';
 import FileViewer from './components/FileViewer';
 import Uploader from './components/Uploader';
 import ResearchAssistant from './components/ResearchAssistant';
-import { LogOut, ShieldCheck, X, Sparkles, GraduationCap } from 'lucide-react';
+import { LogOut, ShieldCheck, X, Sparkles, GraduationCap, Lock, User } from 'lucide-react';
 
 const ADMIN_ID = '78945612130';
 const ADMIN_PASS = 'Kasi@2006';
-const DEFAULT_USER: UserProfile = { id: 'guest', username: 'Student', role: 'User' };
 
 const App: React.FC = () => {
-  const [user, setUser] = useState<UserProfile>(DEFAULT_USER);
+  // Default to Guest user if no session exists - DIRECT ACCESS
+  const [user, setUser] = useState<UserProfile>(() => {
+    const saved = localStorage.getItem('academia_user');
+    return saved ? JSON.parse(saved) : { id: 'guest', username: 'Student', role: 'User' };
+  });
+
   const [currentView, setCurrentView] = useState<ViewState>('home');
-  const [isLoginVisible, setIsLoginVisible] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
 
-  // Sync state with localStorage on mount
+  // Sync state with localStorage
   useEffect(() => {
-    const savedUser = localStorage.getItem('academia_user');
-    if (savedUser) {
-      try {
-        const parsed = JSON.parse(savedUser);
-        setUser(parsed);
-      } catch (e) {
-        localStorage.removeItem('academia_user');
-      }
+    if (user.id !== 'guest') {
+      localStorage.setItem('academia_user', JSON.stringify(user));
     }
-  }, []);
+  }, [user]);
 
-  const handleLogin = (id: string, password?: string) => {
+  const handleAdminLogin = (id: string, password?: string) => {
     if (id === ADMIN_ID && password === ADMIN_PASS) {
       const adminUser: UserProfile = { id, username: 'System Admin', role: 'Admin' };
       setUser(adminUser);
-      localStorage.setItem('academia_user', JSON.stringify(adminUser));
-      setIsLoginVisible(false);
+      setShowAdminLogin(false);
       setCurrentView('admin');
     } else {
       alert("Access Denied: Invalid Admin Credentials.");
@@ -44,11 +41,14 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    setUser(DEFAULT_USER);
+    // Reset to Guest Student instead of null
+    const guestUser: UserProfile = { id: 'guest', username: 'Student', role: 'User' };
+    setUser(guestUser);
     setCurrentView('home');
     localStorage.removeItem('academia_user');
   };
 
+  // Authenticated View
   const renderContent = () => {
     if (currentView === 'admin' && user.role === 'Admin') {
       return <AdminDashboard onBack={() => setCurrentView('home')} />;
@@ -62,7 +62,8 @@ const App: React.FC = () => {
       case 'lab-resources':
         return <FileViewer category="Lab Resources" onBack={() => setCurrentView('home')} />;
       case 'upload':
-        return <Uploader onBack={() => setCurrentView('home')} />;
+        // Pass user, but Uploader will allow overriding details since we are Guest
+        return <Uploader user={user} onBack={() => setCurrentView('home')} />;
       case 'research':
         return <ResearchAssistant onBack={() => setCurrentView('home')} />;
       case 'home':
@@ -73,17 +74,18 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Login Modal */}
-      {isLoginVisible && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4 animate-in fade-in duration-300">
+      
+      {/* Admin Login Modal */}
+      {showAdminLogin && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="relative w-full max-w-md">
             <button 
-              onClick={() => setIsLoginVisible(false)}
-              className="absolute -top-12 right-0 text-white hover:text-slate-200 transition-colors bg-white/10 p-2 rounded-full"
+              onClick={() => setShowAdminLogin(false)} 
+              className="absolute -top-12 right-0 text-white/80 hover:text-white font-bold text-sm flex items-center gap-2 transition-colors"
             >
-              <X className="w-6 h-6" />
+              Close <X className="w-5 h-5" />
             </button>
-            <Login onLogin={handleLogin} />
+            <Login onLogin={handleAdminLogin} />
           </div>
         </div>
       )}
@@ -92,16 +94,9 @@ const App: React.FC = () => {
       <nav className="bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-50 shadow-sm">
         <div 
           className="flex items-center gap-4 cursor-pointer group" 
-          onClick={() => {
-            if (user.role === 'Admin') {
-              setCurrentView('home');
-            } else {
-              setIsLoginVisible(true);
-            }
-          }}
-          title={user.role === 'Admin' ? "Go to Home" : "Admin Login"}
+          onClick={() => setCurrentView('home')}
+          title="Go to Home"
         >
-          {/* Custom Logo Image Container */}
           <div className="w-12 h-12 bg-white rounded-2xl shadow-xl shadow-indigo-100/50 flex items-center justify-center p-1 border border-slate-100 group-hover:scale-110 group-hover:shadow-indigo-200/50 transition-all duration-300 overflow-hidden">
             <img 
               src="https://img.icons8.com/fluency/96/graduation-cap.png" 
@@ -136,14 +131,14 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-2">
-            {user.role === 'Admin' && (
+            {user.role === 'Admin' ? (
               <>
                 <button 
                   onClick={() => setCurrentView('admin')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${currentView === 'admin' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}`}
                 >
                   <ShieldCheck className="w-4 h-4" />
-                  Admin Console
+                  Console
                 </button>
                 <button 
                   onClick={handleLogout}
@@ -153,6 +148,15 @@ const App: React.FC = () => {
                   <LogOut className="w-5 h-5" />
                 </button>
               </>
+            ) : (
+              <button 
+                onClick={() => setShowAdminLogin(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl text-sm font-bold transition-all"
+                title="Admin Access"
+              >
+                <Lock className="w-4 h-4" />
+                <span className="hidden sm:inline">Admin</span>
+              </button>
             )}
           </div>
         </div>

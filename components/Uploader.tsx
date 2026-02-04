@@ -1,22 +1,27 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
-import { Subject, Category } from '../types';
-import { ChevronLeft, Upload, CheckCircle2, AlertCircle, Loader2, FileType, Database, AlertTriangle, Layers, User, Hash } from 'lucide-react';
+import { Subject, Category, UserProfile } from '../types';
+import { ChevronLeft, Upload, CheckCircle2, AlertCircle, Loader2, FileType, AlertTriangle, User, Hash } from 'lucide-react';
 
 interface UploaderProps {
+  user: UserProfile;
   onBack: () => void;
 }
 
 const UNITS = ['Unit 1', 'Unit 2', 'Unit 3', 'Unit 4', 'Unit 5'];
 
-const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
+const Uploader: React.FC<UploaderProps> = ({ user, onBack }) => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<Category | ''>('');
   const [unitNo, setUnitNo] = useState('');
-  const [studentName, setStudentName] = useState('');
-  const [rollNo, setRollNo] = useState('');
+  
+  // Restored manual inputs since we are "Guest" by default
+  const [studentName, setStudentName] = useState(user.id !== 'guest' ? user.username : '');
+  const [rollNo, setRollNo] = useState(user.rollNo || '');
+  // Removed Email State
+
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string, isSchemaError?: boolean } | null>(null);
@@ -89,6 +94,7 @@ const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
           file_url: publicUrl,
           student_name: studentName,
           roll_no: rollNo,
+          user_email: user.email || null, // Use session email if exists, otherwise null
           unit_no: needsUnit ? unitNo : null,
           uploaded_at: new Date().toISOString()
         });
@@ -98,9 +104,8 @@ const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
       setMessage({ type: 'success', text: 'File uploaded successfully!' });
       setFile(null);
       setSelectedSubjectId('');
-      // Keep category selected for easier bulk upload
+      // Preserve identity fields for convenience, reset others
       setUnitNo('');
-      // Keep name/roll for session
     } catch (error: any) {
       console.error('Upload error:', error);
       const isSchemaCacheError = error.message?.includes('column') || error.message?.includes('cache');
@@ -144,7 +149,7 @@ const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
             <div>
               <h4 className="text-amber-900 font-black uppercase tracking-widest text-[10px] mb-1">Identity & Security</h4>
               <p className="text-amber-800 text-sm font-bold">
-                Your name and roll number are recorded to ensure academic integrity. Intentional misinformation will lead to a system ban.
+                Please provide your details below. This information is recorded to ensure academic integrity.
               </p>
             </div>
           </div>

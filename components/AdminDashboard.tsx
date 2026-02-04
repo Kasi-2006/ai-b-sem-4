@@ -4,7 +4,7 @@ import { supabase } from '../services/supabaseClient';
 import { Subject, AcademicFile, CheckoutLog, Category } from '../types';
 import { 
   ChevronLeft, Plus, Trash2, Loader2, RefreshCcw, Search, ShieldAlert, CheckCircle2,
-  Copy, Check, X, Database, Edit2, Eye, MoreVertical, Save, AlertTriangle, Layers, FileText
+  Copy, Check, X, Database, Edit2, Eye, MoreVertical, Save, AlertTriangle, Layers, FileText, Mail
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -68,6 +68,7 @@ CREATE TABLE files (
   file_url TEXT NOT NULL,
   student_name TEXT NOT NULL,
   roll_no TEXT NOT NULL,
+  user_email TEXT,
   unit_no TEXT,
   uploaded_at TIMESTAMPTZ DEFAULT now()
 );
@@ -592,7 +593,7 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
                   <tr>
                     <th className="pb-4 px-4">Document</th>
                     <th className="pb-4 px-4">Category</th>
-                    <th className="pb-4 px-4">Student</th>
+                    <th className="pb-4 px-4">Uploaded By</th>
                     <th className="pb-4 px-4">Roll</th>
                     <th className="pb-4 px-4 text-right">Actions</th>
                   </tr>
@@ -617,7 +618,14 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
                           {file.category}
                         </span>
                       </td>
-                      <td className="py-4 px-4 text-sm font-bold text-slate-700">{file.student_name}</td>
+                      <td className="py-4 px-4">
+                        <div className="text-sm font-bold text-slate-700">{file.student_name}</div>
+                        {file.user_email && (
+                          <div className="text-[10px] text-slate-400 font-medium flex items-center gap-1 mt-0.5">
+                            <Mail className="w-3 h-3" /> {file.user_email}
+                          </div>
+                        )}
+                      </td>
                       <td className="py-4 px-4 text-[10px] font-black text-slate-400 font-mono">{file.roll_no}</td>
                       <td className="py-4 px-4 text-right">
                         <div className="flex items-center justify-end gap-2">

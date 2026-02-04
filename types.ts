@@ -4,6 +4,8 @@ export type UserRole = 'User' | 'Admin';
 export interface UserProfile {
   id: string;
   username: string;
+  email?: string;
+  rollNo?: string;
   role: UserRole;
 }
 
@@ -23,6 +25,7 @@ export interface AcademicFile {
   uploaded_at: string;
   student_name: string;
   roll_no: string;
+  user_email?: string;
   unit_no?: string;
 }
 

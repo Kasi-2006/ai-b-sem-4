@@ -39,6 +39,7 @@ CREATE TABLE files (
   file_url TEXT NOT NULL,
   student_name TEXT NOT NULL,
   roll_no TEXT NOT NULL,
+  user_email TEXT,
   unit_no TEXT,
   uploaded_at TIMESTAMPTZ DEFAULT now()
 );
