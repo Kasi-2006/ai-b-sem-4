@@ -36,13 +36,23 @@ const ResearchAssistant: React.FC<ResearchAssistantProps> = ({ onBack }) => {
     e?.preventDefault();
     if (!input.trim() || isLoading) return;
 
+    // Safety check for API Key presence
+    const apiKey = typeof process !== 'undefined' ? process.env.API_KEY : undefined;
+    if (!apiKey) {
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: 'System Configuration Error: API Key is missing. Please check your environment variables.' 
+      }]);
+      return;
+    }
+
     const userMessage = input.trim();
     setInput('');
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setIsLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: apiKey });
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: userMessage,
@@ -158,7 +168,7 @@ const ResearchAssistant: React.FC<ResearchAssistantProps> = ({ onBack }) => {
 
         {/* Input Area */}
         <div className="p-8 bg-slate-50 border-t border-slate-100">
-          <form onSubmit={handleSend} className="relative w-full">
+          <form handleSend={handleSend} className="relative w-full">
             <input 
               type="text" 
               value={input}
@@ -168,6 +178,7 @@ const ResearchAssistant: React.FC<ResearchAssistantProps> = ({ onBack }) => {
             />
             <button 
               type="submit"
+              onClick={handleSend}
               disabled={!input.trim() || isLoading}
               className="absolute right-4 top-1/2 -translate-y-1/2 p-4 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:bg-slate-400 shadow-xl shadow-indigo-100 group"
             >
