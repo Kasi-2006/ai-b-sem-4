@@ -6,7 +6,7 @@ import {
   ChevronLeft, Plus, Trash2, FileText, LayoutGrid, 
   Loader2, AlertTriangle, RefreshCcw, Search, 
   ExternalLink, Activity, History, ShieldAlert, CheckCircle2,
-  Terminal, Copy, Check, X, Database, Sparkles
+  Terminal, Copy, Check, X, Database, Sparkles, User, Hash
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -316,7 +316,7 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                  <input 
                   type="text" 
-                  placeholder="Search files..." 
+                  placeholder="Search files by name, student, or roll no..." 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -328,17 +328,35 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
                 <thead>
                   <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
                     <th className="pb-4 px-4">Filename</th>
+                    <th className="pb-4 px-4">Contributor</th>
+                    <th className="pb-4 px-4">Roll No</th>
                     <th className="pb-4 px-4">Category</th>
                     <th className="pb-4 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {files.filter(f => f.file_name.toLowerCase().includes(searchTerm.toLowerCase())).map((file) => (
+                  {files.filter(f => 
+                    f.file_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                    f.student_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    f.roll_no?.toLowerCase().includes(searchTerm.toLowerCase())
+                  ).map((file) => (
                     <tr key={file.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-3">
                           <FileText className="w-4 h-4 text-slate-400" />
                           <span className="text-sm font-bold text-slate-800">{file.file_name}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-2">
+                           <User className="w-3.5 h-3.5 text-slate-300" />
+                           <span className="text-sm font-medium text-slate-600">{file.student_name || 'Anonymous'}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-2">
+                           <Hash className="w-3.5 h-3.5 text-slate-300" />
+                           <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{file.roll_no || 'N/A'}</span>
                         </div>
                       </td>
                       <td className="py-4 px-4">

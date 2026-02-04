@@ -20,6 +20,8 @@ export interface AcademicFile {
   file_name: string;
   file_url: string;
   uploaded_at: string;
+  student_name: string;
+  roll_no: string;
 }
 
 export interface CheckoutLog {

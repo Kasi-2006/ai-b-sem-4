@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS files (
   category TEXT NOT NULL CHECK (category IN ('Assignments', 'Notes', 'Lab Resources')),
   file_name TEXT NOT NULL,
   file_url TEXT NOT NULL,
+  student_name TEXT,
+  roll_no TEXT,
   uploaded_at TIMESTAMPTZ DEFAULT now()
 );
 
