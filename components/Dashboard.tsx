@@ -17,26 +17,31 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onSelectView }) => {
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const SQL_SCHEMA = `-- 1. CREATE TABLES
-CREATE TABLE IF NOT EXISTS subjects (
+  const SQL_SCHEMA = `-- 1. CLEANUP PREVIOUS TABLES (FRESH INSTALL)
+DROP TABLE IF EXISTS checkouts;
+DROP TABLE IF EXISTS files;
+DROP TABLE IF EXISTS subjects;
+
+-- 2. CREATE CORE TABLES
+CREATE TABLE subjects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL UNIQUE,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS files (
+CREATE TABLE files (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   subject_id UUID REFERENCES subjects(id) ON DELETE CASCADE,
   category TEXT NOT NULL CHECK (category IN ('Assignments', 'Notes', 'Lab Resources')),
   file_name TEXT NOT NULL,
   file_url TEXT NOT NULL,
-  student_name TEXT,
-  roll_no TEXT,
+  student_name TEXT NOT NULL,
+  roll_no TEXT NOT NULL,
   unit_no TEXT,
   uploaded_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS checkouts (
+CREATE TABLE checkouts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   file_id UUID NOT NULL,
   file_name TEXT NOT NULL,
@@ -45,17 +50,16 @@ CREATE TABLE IF NOT EXISTS checkouts (
   user_role TEXT NOT NULL
 );
 
--- 2. DISABLE PERMISSION CHECKS (RLS) FOR DEVELOPMENT
+-- 3. DISABLE PERMISSION CHECKS (RLS)
 ALTER TABLE subjects DISABLE ROW LEVEL SECURITY;
 ALTER TABLE files DISABLE ROW LEVEL SECURITY;
 ALTER TABLE checkouts DISABLE ROW LEVEL SECURITY;
 
--- 3. INITIALIZE STORAGE BUCKET
+-- 4. INITIALIZE STORAGE
 INSERT INTO storage.buckets (id, name, public) 
 VALUES ('academic-files', 'academic-files', true)
 ON CONFLICT (id) DO NOTHING;
 
--- 4. ENABLE STORAGE POLICIES (Safe Re-creation)
 DROP POLICY IF EXISTS "Public Access" ON storage.objects;
 CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'academic-files' ) WITH CHECK ( bucket_id = 'academic-files' );`;
 
@@ -77,7 +81,6 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
         return;
       }
 
-      // Successful connection
       if (connectionStatus === 'needs-setup' || isManualRefresh) {
         setShowSuccessToast(true);
         setTimeout(() => setShowSuccessToast(false), 5000);
@@ -176,15 +179,15 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
               <Terminal className="w-8 h-8" />
             </div>
             <div>
-              <h2 className="text-3xl font-black text-slate-900 tracking-tight">Infrastructure Setup Required</h2>
-              <p className="text-slate-500 font-medium">Follow these steps to initialize the database and storage.</p>
+              <h2 className="text-3xl font-black text-slate-900 tracking-tight">Full Infrastructure Install</h2>
+              <p className="text-slate-500 font-medium">This script will recreate all tables with Full Name and Roll No tracking.</p>
             </div>
           </div>
 
           <div className="space-y-6">
             <div className="bg-slate-900 rounded-2xl p-6 relative group border border-slate-700 shadow-inner">
               <div className="flex items-center justify-between mb-4 border-b border-white/10 pb-4">
-                <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Master Setup SQL</span>
+                <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Master Setup SQL (Fresh Install)</span>
                 <button 
                   onClick={() => {
                     navigator.clipboard.writeText(SQL_SCHEMA);
@@ -202,11 +205,15 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
               </pre>
             </div>
 
-            <div className="bg-amber-50 border border-amber-100 rounded-2xl p-6">
-              <ol className="text-sm text-amber-800 space-y-2 list-decimal ml-4 font-medium">
-                <li>Copy the SQL script above.</li>
-                <li>In your <strong>Supabase Dashboard</strong>, click on <strong>SQL Editor</strong>.</li>
-                <li>Create a <strong>New Query</strong>, paste the script, and click <strong>Run</strong>.</li>
+            <div className="bg-amber-50 border border-amber-100 rounded-2xl p-6 shadow-inner">
+              <div className="flex items-center gap-2 mb-2">
+                 <AlertTriangle className="w-4 h-4 text-amber-600" />
+                 <span className="text-xs font-black uppercase text-amber-800">Warning: Destructive Operation</span>
+              </div>
+              <ol className="text-xs text-amber-800 space-y-1 list-decimal ml-4 font-bold uppercase tracking-tight opacity-80">
+                <li>Run this in Supabase SQL Editor to wipe and recreate tables.</li>
+                <li>Wait for the process to complete in Supabase.</li>
+                <li>Click the verification button below.</li>
               </ol>
             </div>
 
@@ -217,9 +224,6 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
               <Check className="w-5 h-5" />
               I have executed the code
             </button>
-            <p className="text-center text-[10px] text-slate-400 font-black uppercase tracking-widest">
-              Clicking this will unlock the dashboard immediately.
-            </p>
           </div>
         </div>
       </div>
@@ -228,7 +232,6 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
 
   return (
     <div className="space-y-8 py-4 animate-in fade-in duration-500 relative">
-      {/* Success Toast */}
       {showSuccessToast && (
         <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-emerald-600 text-white px-8 py-4 rounded-3xl shadow-2xl flex items-center gap-4 animate-in slide-in-from-top-12 duration-500">
           <PartyPopper className="w-6 h-6" />
@@ -250,7 +253,7 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
           </div>
         </div>
         
-        <div className="flex items-center gap-3 px-4 py-2 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-2xl">
+        <div className="flex items-center gap-3 px-4 py-2 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-2xl shadow-sm">
           <Wifi className="w-4 h-4" />
           <span className="text-xs font-black uppercase tracking-widest">Active Connection</span>
         </div>

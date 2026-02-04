@@ -107,18 +107,6 @@ const App: React.FC = () => {
               src="https://img.icons8.com/fluency/96/graduation-cap.png" 
               alt="AI B SEM 4 Logo" 
               className="w-10 h-10 object-contain"
-              onError={(e) => {
-                // Fail-safe: If image doesn't load, show a styled GraduationCap icon
-                const target = e.currentTarget;
-                const parent = target.parentElement;
-                if (parent) {
-                  target.style.display = 'none';
-                  const fallback = document.createElement('div');
-                  fallback.className = 'text-indigo-600';
-                  fallback.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>';
-                  parent.appendChild(fallback);
-                }
-              }}
             />
           </div>
           <div>
@@ -155,7 +143,7 @@ const App: React.FC = () => {
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${currentView === 'admin' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}`}
                 >
                   <ShieldCheck className="w-4 h-4" />
-                  Dashboard
+                  Admin Console
                 </button>
                 <button 
                   onClick={handleLogout}
