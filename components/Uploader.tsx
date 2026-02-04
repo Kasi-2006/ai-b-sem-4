@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { Subject, Category } from '../types';
-import { ChevronLeft, Upload, CheckCircle2, AlertCircle, Loader2, FileType } from 'lucide-react';
+import { ChevronLeft, Upload, CheckCircle2, AlertCircle, Loader2, FileType, Database } from 'lucide-react';
 
 interface UploaderProps {
   onBack: () => void;
@@ -14,7 +14,7 @@ const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
   const [selectedCategory, setSelectedCategory] = useState<Category | ''>('');
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string, isBucketError?: boolean } | null>(null);
 
   useEffect(() => {
     const fetchSubjects = async () => {
@@ -62,7 +62,18 @@ const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
         .from('academic-files')
         .upload(filePath, file);
 
-      if (storageError) throw storageError;
+      if (storageError) {
+        if (storageError.message.toLowerCase().includes('bucket not found')) {
+          setMessage({ 
+            type: 'error', 
+            text: 'Bucket "academic-files" does not exist in Supabase Storage.',
+            isBucketError: true 
+          });
+          setUploading(false);
+          return;
+        }
+        throw storageError;
+      }
 
       // 2. Get Public URL
       const { data: { publicUrl } } = supabase.storage
@@ -140,7 +151,7 @@ const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
                 <option value="">-- Select Category --</option>
                 <option value="Assignments">Assignments</option>
                 <option value="Notes">Notes</option>
-                <option value="Lab Manual">Lab Manual</option>
+                <option value="Lab Resources">Lab Resources</option>
               </select>
             </div>
           </div>
@@ -177,9 +188,25 @@ const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
           </div>
 
           {message && (
-            <div className={`flex items-center gap-3 p-4 rounded-2xl border ${message.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-red-50 border-red-100 text-red-700'}`}>
-              {message.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-              <span className="text-sm font-semibold">{message.text}</span>
+            <div className={`flex flex-col gap-3 p-6 rounded-2xl border ${message.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-red-50 border-red-100 text-red-700'}`}>
+              <div className="flex items-center gap-3">
+                {message.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                <span className="text-sm font-bold">{message.text}</span>
+              </div>
+              {message.isBucketError && (
+                <div className="mt-2 p-4 bg-white/50 rounded-xl border border-red-200 text-xs">
+                  <div className="flex items-center gap-2 mb-2 text-red-900 font-black uppercase tracking-widest">
+                    <Database className="w-4 h-4" /> Solution:
+                  </div>
+                  <p className="mb-3 font-medium text-red-800">The "academic-files" storage bucket hasn't been created yet.</p>
+                  <button 
+                    onClick={onBack}
+                    className="w-full py-3 bg-red-600 text-white rounded-xl font-black hover:bg-red-700 transition-all uppercase tracking-widest"
+                  >
+                    Go back & Run Setup Script
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
