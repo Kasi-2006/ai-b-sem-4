@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { Subject, Category } from '../types';
-import { ChevronLeft, Upload, CheckCircle2, AlertCircle, Loader2, FileType, Database, User, Hash } from 'lucide-react';
+import { ChevronLeft, Upload, CheckCircle2, AlertCircle, Loader2, FileType, Database, User, Hash, AlertTriangle, Layers } from 'lucide-react';
 
 interface UploaderProps {
   onBack: () => void;
@@ -12,6 +12,7 @@ const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<Category | ''>('');
+  const [unitNo, setUnitNo] = useState('');
   const [studentName, setStudentName] = useState('');
   const [rollNo, setRollNo] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -46,8 +47,11 @@ const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedSubjectId || !selectedCategory || !file || !studentName || !rollNo) {
-      setMessage({ type: 'error', text: 'Please complete all fields (including name and roll number)' });
+    
+    // Validate fields
+    const needsUnit = selectedCategory === 'Assignments' || selectedCategory === 'Notes';
+    if (!selectedSubjectId || !selectedCategory || !file || !studentName || !rollNo || (needsUnit && !unitNo)) {
+      setMessage({ type: 'error', text: 'Please complete all fields' });
       return;
     }
 
@@ -92,6 +96,7 @@ const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
           file_url: publicUrl,
           student_name: studentName,
           roll_no: rollNo,
+          unit_no: needsUnit ? unitNo : null,
           uploaded_at: new Date().toISOString()
         });
 
@@ -101,6 +106,7 @@ const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
       setFile(null);
       setSelectedSubjectId('');
       setSelectedCategory('');
+      setUnitNo('');
       setStudentName('');
       setRollNo('');
     } catch (error: any) {
@@ -110,6 +116,8 @@ const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
       setUploading(false);
     }
   };
+
+  const isUnitRequired = selectedCategory === 'Assignments' || selectedCategory === 'Notes';
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -132,6 +140,19 @@ const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Strict Warning Tag */}
+          <div className="bg-amber-50 border-2 border-amber-200 p-6 rounded-3xl flex items-start gap-4 animate-pulse-subtle">
+            <div className="p-2 bg-amber-500 rounded-xl text-white shadow-lg shadow-amber-200">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div>
+              <h4 className="text-amber-900 font-black uppercase tracking-widest text-[10px] mb-1">Upload Policy & Warning</h4>
+              <p className="text-amber-800 text-sm font-bold leading-relaxed">
+                As per system guidelines, in case of uploading wrong content or causing problems to the users, <span className="underline decoration-2">severe action will be taken</span>. All uploads are logged with student identification.
+              </p>
+            </div>
+          </div>
+
           {/* Metadata Section */}
           <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 space-y-6">
              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
@@ -146,7 +167,7 @@ const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
                       value={studentName}
                       onChange={(e) => setStudentName(e.target.value)}
                       placeholder="Enter your name"
-                      className="w-full pl-12 pr-5 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all text-slate-800"
+                      className="w-full pl-12 pr-5 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all text-slate-800 font-bold"
                     />
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
                   </div>
@@ -159,7 +180,7 @@ const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
                       value={rollNo}
                       onChange={(e) => setRollNo(e.target.value)}
                       placeholder="e.g. 21CS001"
-                      className="w-full pl-12 pr-5 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all text-slate-800"
+                      className="w-full pl-12 pr-5 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all text-slate-800 font-bold"
                     />
                     <Hash className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
                   </div>
@@ -173,7 +194,7 @@ const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
               <select
                 value={selectedSubjectId}
                 onChange={(e) => setSelectedSubjectId(e.target.value)}
-                className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all text-slate-800"
+                className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all text-slate-800 font-bold"
               >
                 <option value="">-- Select Subject --</option>
                 {subjects.map((s) => (
@@ -187,7 +208,7 @@ const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value as Category)}
-                className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all text-slate-800"
+                className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all text-slate-800 font-bold"
               >
                 <option value="">-- Select Category --</option>
                 <option value="Assignments">Assignments</option>
@@ -196,6 +217,23 @@ const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
               </select>
             </div>
           </div>
+
+          {isUnitRequired && (
+            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+              <label className="block text-sm font-bold text-slate-700 mb-2">Unit Number</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={unitNo}
+                  onChange={(e) => setUnitNo(e.target.value)}
+                  placeholder="e.g. Unit 1 or Module 2"
+                  className="w-full pl-12 pr-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all text-slate-800 font-bold"
+                />
+                <Layers className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+              </div>
+              <p className="text-[10px] text-slate-400 font-bold mt-2 ml-1 uppercase tracking-widest">Crucial for sorting materials</p>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-2">PDF Document</label>
@@ -253,7 +291,7 @@ const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
 
           <button
             type="submit"
-            disabled={uploading || !file || !selectedSubjectId || !selectedCategory || !studentName || !rollNo}
+            disabled={uploading || !file || !selectedSubjectId || !selectedCategory || !studentName || !rollNo || (isUnitRequired && !unitNo)}
             className="w-full bg-indigo-600 disabled:bg-slate-300 text-white font-bold py-5 rounded-2xl hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all flex items-center justify-center gap-3"
           >
             <Upload className="w-5 h-5" />

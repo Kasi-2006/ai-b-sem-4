@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS files (
   file_url TEXT NOT NULL,
   student_name TEXT,
   roll_no TEXT,
+  unit_no TEXT,
   uploaded_at TIMESTAMPTZ DEFAULT now()
 );
 

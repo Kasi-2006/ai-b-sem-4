@@ -1,12 +1,12 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { Subject, AcademicFile, CheckoutLog } from '../types';
 import { 
   ChevronLeft, Plus, Trash2, FileText, LayoutGrid, 
-  Loader2, AlertTriangle, RefreshCcw, Search, 
-  ExternalLink, Activity, History, ShieldAlert, CheckCircle2,
-  Terminal, Copy, Check, X, Database, Sparkles, User, Hash
+  Loader2, RefreshCcw, Search, ShieldAlert, CheckCircle2,
+  Terminal, Copy, Check, X, Database, User, Hash, MoreVertical, Edit3,
+  History, Sparkles, Layers
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -26,10 +26,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [showFixModal, setShowFixModal] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // Rename Logic State for Files
+  const [editingFile, setEditingFile] = useState<AcademicFile | null>(null);
+  const [newFileName, setNewFileName] = useState('');
+  
+  // Rename Logic State for Subjects
+  const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
+  const [newSubName, setNewSubName] = useState('');
+
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [activeSubMenuId, setActiveSubMenuId] = useState<string | null>(null);
+  
+  const fileMenuRef = useRef<HTMLDivElement>(null);
+  const subMenuRef = useRef<HTMLDivElement>(null);
+
   const FIX_SQL = `-- RUN THIS IN SUPABASE SQL EDITOR TO FIX PERMISSIONS AND STORAGE
 ALTER TABLE subjects DISABLE ROW LEVEL SECURITY;
 ALTER TABLE files DISABLE ROW LEVEL SECURITY;
 ALTER TABLE checkouts DISABLE ROW LEVEL SECURITY;
+
+-- Ensure unit_no column exists
+ALTER TABLE files ADD COLUMN IF NOT EXISTS unit_no TEXT;
 
 INSERT INTO storage.buckets (id, name, public) 
 VALUES ('academic-files', 'academic-files', true)
@@ -62,6 +79,18 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
 
   useEffect(() => {
     fetchData();
+    
+    // Close menus when clicking outside
+    const handleClickOutside = (event: MouseEvent) => {
+      if (fileMenuRef.current && !fileMenuRef.current.contains(event.target as Node)) {
+        setActiveMenuId(null);
+      }
+      if (subMenuRef.current && !subMenuRef.current.contains(event.target as Node)) {
+        setActiveSubMenuId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const handleSeedSubjects = async () => {
@@ -120,6 +149,82 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
     }
   };
 
+  const handleRenameFile = async () => {
+    if (!editingFile || !newFileName.trim()) return;
+    setActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from('files')
+        .update({ file_name: newFileName.trim() })
+        .eq('id', editingFile.id);
+      
+      if (error) throw error;
+      
+      setStatusMsg({ type: 'success', text: 'File renamed successfully!' });
+      setEditingFile(null);
+      await fetchData();
+    } catch (err: any) {
+      setStatusMsg({ type: 'error', text: `Rename failed: ${err.message}` });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRenameSubject = async () => {
+    if (!editingSubject || !newSubName.trim()) return;
+    setActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from('subjects')
+        .update({ name: newSubName.trim() })
+        .eq('id', editingSubject.id);
+      
+      if (error) throw error;
+      
+      setStatusMsg({ type: 'success', text: 'Subject renamed successfully!' });
+      setEditingSubject(null);
+      await fetchData();
+    } catch (err: any) {
+      setStatusMsg({ type: 'error', text: `Rename failed: ${err.message}` });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteFile = async (file: AcademicFile) => {
+    if (confirm(`Are you sure you want to permanently delete "${file.file_name}"?`)) {
+      setActionLoading(true);
+      try {
+        const { error } = await supabase.from('files').delete().eq('id', file.id);
+        if (error) throw error;
+        setStatusMsg({ type: 'success', text: 'File deleted.' });
+        await fetchData();
+      } catch (err: any) {
+        setStatusMsg({ type: 'error', text: `Delete failed: ${err.message}` });
+      } finally {
+        setActionLoading(false);
+        setActiveMenuId(null);
+      }
+    }
+  };
+
+  const handleDeleteSubject = async (sub: Subject) => {
+    if(confirm(`Are you sure? Deleting "${sub.name}" will also delete ALL associated assignments, notes, and resources.`)) {
+      setActionLoading(true);
+      try {
+        const { error } = await supabase.from('subjects').delete().eq('id', sub.id);
+        if (error) throw error;
+        setStatusMsg({ type: 'success', text: `Subject "${sub.name}" and all contents deleted.` });
+        await fetchData();
+      } catch (err: any) {
+        setStatusMsg({ type: 'error', text: `Delete failed: ${err.message}` });
+      } finally {
+        setActionLoading(false);
+        setActiveSubMenuId(null);
+      }
+    }
+  };
+
   const copyFixSql = () => {
     navigator.clipboard.writeText(FIX_SQL);
     setCopied(true);
@@ -128,6 +233,86 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
 
   return (
     <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+      {/* Rename File Modal */}
+      {editingFile && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-200 p-8 animate-in zoom-in-95 duration-200">
+            <h3 className="text-2xl font-black text-slate-900 mb-2">Rename File</h3>
+            <p className="text-slate-500 font-medium mb-6 text-sm">Update the display name for this resource.</p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">New Filename</label>
+                <input 
+                  type="text"
+                  value={newFileName}
+                  onChange={(e) => setNewFileName(e.target.value)}
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-indigo-500 font-bold"
+                  placeholder="Enter new name..."
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button 
+                  onClick={() => setEditingFile(null)}
+                  className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black hover:bg-slate-200 transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleRenameFile}
+                  disabled={actionLoading || !newFileName.trim()}
+                  className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50"
+                >
+                  {actionLoading ? 'Updating...' : 'Save Name'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rename Subject Modal */}
+      {editingSubject && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-200 p-8 animate-in zoom-in-95 duration-200">
+            <h3 className="text-2xl font-black text-slate-900 mb-2">Rename Subject</h3>
+            <p className="text-slate-500 font-medium mb-6 text-sm">Update the name of this academic module.</p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">New Module Name</label>
+                <input 
+                  type="text"
+                  value={newSubName}
+                  onChange={(e) => setNewSubName(e.target.value)}
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-indigo-500 font-bold"
+                  placeholder="e.g. Modern AI Systems"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button 
+                  onClick={() => setEditingSubject(null)}
+                  className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black hover:bg-slate-200 transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleRenameSubject}
+                  disabled={actionLoading || !newSubName.trim()}
+                  className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50"
+                >
+                  {actionLoading ? 'Updating...' : 'Save Module'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Fix Permissions/Storage Modal */}
       {showFixModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
@@ -141,7 +326,7 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
               </button>
             </div>
             
-            <h3 className="text-2xl font-black text-slate-900 mb-2">Fix Infrastructure Errors</h3>
+            <h3 className="text-2xl font-black text-slate-900 mb-2">Infrastructure Repair</h3>
             <p className="text-slate-500 font-medium mb-6 text-sm">Use this script to fix <strong>Permission Denied</strong> or <strong>Bucket not found</strong> errors.</p>
             
             <div className="bg-slate-900 rounded-2xl p-5 mb-6 relative">
@@ -289,22 +474,47 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {subjects.map((sub) => (
-                <div key={sub.id} className="p-6 bg-slate-50 border border-slate-200 rounded-3xl flex items-center justify-between group hover:bg-white hover:shadow-lg transition-all">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 bg-indigo-400 rounded-full" />
-                    <span className="font-bold text-slate-700">{sub.name}</span>
+                <div key={sub.id} className="p-6 bg-slate-50 border border-slate-200 rounded-3xl flex items-center justify-between group hover:bg-white hover:shadow-lg transition-all relative">
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    <div className="w-2 h-2 bg-indigo-400 rounded-full shrink-0" />
+                    <span className="font-bold text-slate-700 truncate">{sub.name}</span>
                   </div>
-                  <button 
-                    onClick={async () => {
-                      if(confirm(`Delete "${sub.name}" and all its files?`)) {
-                        await supabase.from('subjects').delete().eq('id', sub.id);
-                        fetchData();
-                      }
-                    }}
-                    className="p-2 text-slate-300 hover:text-red-500 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  
+                  <div className="relative">
+                    <button 
+                      onClick={() => setActiveSubMenuId(activeSubMenuId === sub.id ? null : sub.id)}
+                      className="p-2 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                    >
+                      <MoreVertical className="w-5 h-5" />
+                    </button>
+                    
+                    {/* Subject Context Menu */}
+                    {activeSubMenuId === sub.id && (
+                      <div 
+                        ref={subMenuRef}
+                        className="absolute right-0 top-10 z-[50] w-44 bg-white border border-slate-200 rounded-2xl shadow-2xl py-2 animate-in fade-in slide-in-from-top-2 duration-200"
+                      >
+                        <button 
+                          onClick={() => {
+                            setEditingSubject(sub);
+                            setNewSubName(sub.name);
+                            setActiveSubMenuId(null);
+                          }}
+                          className="w-full px-4 py-3 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors"
+                        >
+                          <Edit3 className="w-4 h-4 text-indigo-500" />
+                          Rename
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteSubject(sub)}
+                          className="w-full px-4 py-3 text-left text-sm font-bold text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -323,11 +533,12 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
                  />
                </div>
              </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto min-h-[300px]">
               <table className="w-full text-left">
                 <thead>
                   <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
                     <th className="pb-4 px-4">Filename</th>
+                    <th className="pb-4 px-4">Unit</th>
                     <th className="pb-4 px-4">Contributor</th>
                     <th className="pb-4 px-4">Roll No</th>
                     <th className="pb-4 px-4">Category</th>
@@ -346,6 +557,16 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
                           <FileText className="w-4 h-4 text-slate-400" />
                           <span className="text-sm font-bold text-slate-800">{file.file_name}</span>
                         </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        {file.unit_no ? (
+                          <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-100 rounded-lg w-fit">
+                            <Layers className="w-3 h-3 text-slate-400" />
+                            <span className="text-[10px] font-black text-slate-600 uppercase tracking-tight">{file.unit_no}</span>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] font-black text-slate-300 uppercase">N/A</span>
+                        )}
                       </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-2">
@@ -367,18 +588,40 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
                           {file.category}
                         </span>
                       </td>
-                      <td className="py-4 px-4 text-right">
+                      <td className="py-4 px-4 text-right relative">
                         <button 
-                          onClick={async () => {
-                            if(confirm('Delete permanently?')) {
-                              await supabase.from('files').delete().eq('id', file.id);
-                              fetchData();
-                            }
-                          }}
-                          className="text-slate-300 hover:text-red-500 transition-colors"
+                          onClick={() => setActiveMenuId(activeMenuId === file.id ? null : file.id)}
+                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <MoreVertical className="w-5 h-5" />
                         </button>
+                        
+                        {/* File Dropdown Menu */}
+                        {activeMenuId === file.id && (
+                          <div 
+                            ref={fileMenuRef}
+                            className="absolute right-4 top-12 z-[50] w-48 bg-white border border-slate-200 rounded-2xl shadow-2xl py-2 animate-in fade-in slide-in-from-top-2 duration-200"
+                          >
+                            <button 
+                              onClick={() => {
+                                setEditingFile(file);
+                                setNewFileName(file.file_name);
+                                setActiveMenuId(null);
+                              }}
+                              className="w-full px-4 py-3 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors"
+                            >
+                              <Edit3 className="w-4 h-4 text-indigo-500" />
+                              Rename
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteFile(file)}
+                              className="w-full px-4 py-3 text-left text-sm font-bold text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4 text-red-500" />
+                              Delete
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}

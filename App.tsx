@@ -7,7 +7,7 @@ import AdminDashboard from './components/AdminDashboard';
 import FileViewer from './components/FileViewer';
 import Uploader from './components/Uploader';
 import ResearchAssistant from './components/ResearchAssistant';
-import { LogOut, GraduationCap, ShieldCheck, X, Sparkles } from 'lucide-react';
+import { LogOut, ShieldCheck, X, Sparkles, GraduationCap } from 'lucide-react';
 
 const ADMIN_ID = '78945612130';
 const ADMIN_PASS = 'Kasi@2006';
@@ -91,7 +91,7 @@ const App: React.FC = () => {
       {/* Navigation */}
       <nav className="bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-50 shadow-sm">
         <div 
-          className="flex items-center gap-3 cursor-pointer group" 
+          className="flex items-center gap-4 cursor-pointer group" 
           onClick={() => {
             if (user.role === 'Admin') {
               setCurrentView('home');
@@ -101,12 +101,29 @@ const App: React.FC = () => {
           }}
           title={user.role === 'Admin' ? "Go to Home" : "Admin Login"}
         >
-          <div className="bg-indigo-600 p-2.5 rounded-xl shadow-lg shadow-indigo-100 group-hover:scale-110 transition-transform">
-            <GraduationCap className="text-white w-6 h-6" />
+          {/* Custom Logo Image Container */}
+          <div className="w-12 h-12 bg-white rounded-2xl shadow-xl shadow-indigo-100/50 flex items-center justify-center p-1 border border-slate-100 group-hover:scale-110 group-hover:shadow-indigo-200/50 transition-all duration-300 overflow-hidden">
+            <img 
+              src="https://img.icons8.com/fluency/96/graduation-cap.png" 
+              alt="AI B SEM 4 Logo" 
+              className="w-10 h-10 object-contain"
+              onError={(e) => {
+                // Fail-safe: If image doesn't load, show a styled GraduationCap icon
+                const target = e.currentTarget;
+                const parent = target.parentElement;
+                if (parent) {
+                  target.style.display = 'none';
+                  const fallback = document.createElement('div');
+                  fallback.className = 'text-indigo-600';
+                  fallback.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>';
+                  parent.appendChild(fallback);
+                }
+              }}
+            />
           </div>
           <div>
-            <h1 className="text-xl font-black tracking-tight text-slate-900">AcademiaHub</h1>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+            <h1 className="text-xl font-black tracking-tight text-slate-900 leading-none">AI B SEM 4</h1>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
               {user.role === 'Admin' ? 'Management Active' : 'Control Center'}
             </p>
           </div>
@@ -149,7 +166,6 @@ const App: React.FC = () => {
                 </button>
               </>
             )}
-            {/* Guest View: Only logo triggers login now */}
           </div>
         </div>
       </nav>
@@ -160,7 +176,7 @@ const App: React.FC = () => {
       </main>
       
       <footer className="py-10 border-t border-slate-100 bg-white/50 text-center">
-        <p className="text-slate-400 text-sm font-medium">AcademiaHub Management System &copy; 2024</p>
+        <p className="text-slate-400 text-sm font-medium">AI B SEM 4 Management System &copy; 2024</p>
       </footer>
     </div>
   );

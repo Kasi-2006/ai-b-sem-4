@@ -22,6 +22,7 @@ export interface AcademicFile {
   uploaded_at: string;
   student_name: string;
   roll_no: string;
+  unit_no?: string;
 }
 
 export interface CheckoutLog {
