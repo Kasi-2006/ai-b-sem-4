@@ -33,6 +33,7 @@ const FileViewer: React.FC<FileViewerProps> = ({ category, onBack }) => {
       const { data, error } = await supabase
         .from('subjects')
         .select('*')
+        .eq('category', category)
         .order('name');
       
       if (error) {
@@ -45,7 +46,7 @@ const FileViewer: React.FC<FileViewerProps> = ({ category, onBack }) => {
     };
 
     fetchSubjects();
-  }, []);
+  }, [category]);
 
   useEffect(() => {
     const fetchFiles = async () => {

@@ -22,16 +22,22 @@ const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string, isSchemaError?: boolean } | null>(null);
 
   useEffect(() => {
+    if (!selectedCategory) {
+      setSubjects([]);
+      return;
+    }
+
     const fetchSubjects = async () => {
       const { data, error } = await supabase
         .from('subjects')
         .select('*')
+        .eq('category', selectedCategory)
         .order('name');
       if (error) console.error(error);
       else setSubjects(data || []);
     };
     fetchSubjects();
-  }, []);
+  }, [selectedCategory]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
@@ -92,10 +98,9 @@ const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
       setMessage({ type: 'success', text: 'File uploaded successfully!' });
       setFile(null);
       setSelectedSubjectId('');
-      setSelectedCategory('');
+      // Keep category selected for easier bulk upload
       setUnitNo('');
-      setStudentName('');
-      setRollNo('');
+      // Keep name/roll for session
     } catch (error: any) {
       console.error('Upload error:', error);
       const isSchemaCacheError = error.message?.includes('column') || error.message?.includes('cache');
@@ -175,30 +180,34 @@ const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="block text-sm font-bold text-slate-700 ml-1">Subject</label>
+              <label className="block text-sm font-bold text-slate-700 ml-1">Category</label>
               <select
-                value={selectedSubjectId}
-                onChange={(e) => setSelectedSubjectId(e.target.value)}
+                value={selectedCategory}
+                onChange={(e) => {
+                  setSelectedCategory(e.target.value as Category);
+                  setSelectedSubjectId(''); // Reset subject when category changes
+                }}
                 className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 outline-none font-bold"
               >
-                <option value="">-- Choose Subject --</option>
-                {subjects.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
+                <option value="">-- Choose Category First --</option>
+                <option value="Assignments">Assignments</option>
+                <option value="Notes">Notes</option>
+                <option value="Lab Resources">Lab Resources</option>
               </select>
             </div>
 
             <div className="space-y-2">
-              <label className="block text-sm font-bold text-slate-700 ml-1">Category</label>
+              <label className="block text-sm font-bold text-slate-700 ml-1">Subject</label>
               <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value as Category)}
-                className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 outline-none font-bold"
+                value={selectedSubjectId}
+                onChange={(e) => setSelectedSubjectId(e.target.value)}
+                disabled={!selectedCategory}
+                className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 outline-none font-bold disabled:opacity-50 disabled:bg-slate-100"
               >
-                <option value="">-- Choose Category --</option>
-                <option value="Assignments">Assignments</option>
-                <option value="Notes">Notes</option>
-                <option value="Lab Resources">Lab Resources</option>
+                <option value="">{selectedCategory ? '-- Choose Subject --' : '-- Waiting for Category --'}</option>
+                {subjects.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
               </select>
             </div>
           </div>

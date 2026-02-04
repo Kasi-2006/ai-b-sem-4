@@ -10,6 +10,7 @@ export interface UserProfile {
 export interface Subject {
   id: string;
   name: string;
+  category: 'Assignments' | 'Notes' | 'Lab Resources';
   created_at: string;
 }
 

@@ -25,8 +25,10 @@ DROP TABLE IF EXISTS subjects;
 -- 2. CREATE CORE TABLES
 CREATE TABLE subjects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL UNIQUE,
-  created_at TIMESTAMPTZ DEFAULT now()
+  name TEXT NOT NULL,
+  category TEXT NOT NULL CHECK (category IN ('Assignments', 'Notes', 'Lab Resources')),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (name, category)
 );
 
 CREATE TABLE files (
@@ -196,7 +198,7 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
                   }}
                   className="flex items-center gap-2 text-xs font-bold text-indigo-400 hover:text-white transition-colors"
                 >
-                  {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                  {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-indigo-400" />}
                   {copied ? 'Copied' : 'Copy Full Script'}
                 </button>
               </div>
