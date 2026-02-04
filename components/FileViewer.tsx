@@ -4,7 +4,7 @@ import { supabase } from '../services/supabaseClient';
 import { Subject, AcademicFile, Category } from '../types';
 import { 
   ChevronLeft, Download, FileText, Search, Loader2, 
-  CheckCircle, AlertCircle, Eye, X, Layers, Filter
+  CheckCircle, AlertCircle, Eye, X, Layers
 } from 'lucide-react';
 
 interface FileViewerProps {
@@ -12,10 +12,11 @@ interface FileViewerProps {
   onBack: () => void;
 }
 
+const UNITS = ['Unit 1', 'Unit 2', 'Unit 3', 'Unit 4', 'Unit 5'];
+
 const FileViewer: React.FC<FileViewerProps> = ({ category, onBack }) => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
-  const [availableUnits, setAvailableUnits] = useState<string[]>([]);
   const [selectedUnitNo, setSelectedUnitNo] = useState<string>('all');
   const [files, setFiles] = useState<AcademicFile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,34 +46,6 @@ const FileViewer: React.FC<FileViewerProps> = ({ category, onBack }) => {
 
     fetchSubjects();
   }, []);
-
-  // Fetch unique units for the selected subject and category
-  useEffect(() => {
-    const fetchUnits = async () => {
-      if (!selectedSubjectId || !isUnitApplicable) {
-        setAvailableUnits([]);
-        setSelectedUnitNo('all');
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('files')
-        .select('unit_no')
-        .eq('subject_id', selectedSubjectId)
-        .eq('category', category)
-        .not('unit_no', 'is', null);
-
-      if (error) {
-        console.error('Error fetching units:', error);
-      } else {
-        const uniqueUnits = Array.from(new Set(data.map(item => item.unit_no))).sort();
-        setAvailableUnits(uniqueUnits as string[]);
-        setSelectedUnitNo('all');
-      }
-    };
-
-    fetchUnits();
-  }, [selectedSubjectId, category]);
 
   useEffect(() => {
     const fetchFiles = async () => {
@@ -105,7 +78,7 @@ const FileViewer: React.FC<FileViewerProps> = ({ category, onBack }) => {
     };
 
     fetchFiles();
-  }, [selectedSubjectId, category, selectedUnitNo]);
+  }, [selectedSubjectId, category, selectedUnitNo, isUnitApplicable]);
 
   const logActivity = async (file: AcademicFile, type: string) => {
     try {
@@ -231,7 +204,7 @@ const FileViewer: React.FC<FileViewerProps> = ({ category, onBack }) => {
           </div>
         </div>
 
-        {/* Unit Selection (Conditionally shown) */}
+        {/* Unit Selection (Fixed units 1-5) */}
         {isUnitApplicable && selectedSubjectId && (
           <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-lg animate-in slide-in-from-right-4 duration-300">
             <label htmlFor="unit-select" className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">
@@ -245,7 +218,7 @@ const FileViewer: React.FC<FileViewerProps> = ({ category, onBack }) => {
                 className="w-full pl-6 pr-12 py-4 bg-indigo-50 border-2 border-indigo-100 rounded-2xl focus:outline-none focus:border-indigo-500 transition-all appearance-none text-indigo-900 font-black"
               >
                 <option value="all">Show All Units</option>
-                {availableUnits.map((u) => (
+                {UNITS.map((u) => (
                   <option key={u} value={u}>{u}</option>
                 ))}
               </select>

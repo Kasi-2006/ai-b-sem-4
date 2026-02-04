@@ -8,6 +8,8 @@ interface UploaderProps {
   onBack: () => void;
 }
 
+const UNITS = ['Unit 1', 'Unit 2', 'Unit 3', 'Unit 4', 'Unit 5'];
+
 const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
@@ -222,13 +224,16 @@ const Uploader: React.FC<UploaderProps> = ({ onBack }) => {
             <div className="animate-in fade-in slide-in-from-top-2 duration-300">
               <label className="block text-sm font-bold text-slate-700 mb-2">Unit Number</label>
               <div className="relative">
-                <input
-                  type="text"
+                <select
                   value={unitNo}
                   onChange={(e) => setUnitNo(e.target.value)}
-                  placeholder="e.g. Unit 1 or Module 2"
-                  className="w-full pl-12 pr-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all text-slate-800 font-bold"
-                />
+                  className="w-full pl-12 pr-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all text-slate-800 font-bold appearance-none"
+                >
+                  <option value="">-- Select Unit --</option>
+                  {UNITS.map((u) => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
                 <Layers className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
               </div>
               <p className="text-[10px] text-slate-400 font-bold mt-2 ml-1 uppercase tracking-widest">Crucial for sorting materials</p>
