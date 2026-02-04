@@ -91,8 +91,14 @@ const App: React.FC = () => {
       <nav className="bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-50 shadow-sm">
         <div 
           className="flex items-center gap-4 cursor-pointer group" 
-          onClick={() => setCurrentView('home')}
-          title="Go to Home"
+          onClick={() => {
+            if (user.role === 'Admin') {
+              setCurrentView('home');
+            } else {
+              setShowAdminLogin(true);
+            }
+          }}
+          title={user.role === 'Admin' ? "Go to Home" : "Admin Login"}
         >
           <div className="w-12 h-12 bg-white rounded-2xl shadow-xl shadow-indigo-100/50 flex items-center justify-center p-1 border border-slate-100 group-hover:scale-110 group-hover:shadow-indigo-200/50 transition-all duration-300 overflow-hidden">
             <img 
@@ -136,16 +142,7 @@ const App: React.FC = () => {
                   <LogOut className="w-5 h-5" />
                 </button>
               </>
-            ) : (
-              <button 
-                onClick={() => setShowAdminLogin(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl text-sm font-bold transition-all"
-                title="Admin Access"
-              >
-                <Lock className="w-4 h-4" />
-                <span className="hidden sm:inline">Admin</span>
-              </button>
-            )}
+            ) : null}
           </div>
         </div>
       </nav>
