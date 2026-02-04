@@ -240,9 +240,14 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
       )}
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-4xl font-black text-slate-900 tracking-tight">AI B SEM 4</h2>
-          <p className="text-slate-500 mt-1 font-medium">Academic Content Management & Intelligence</p>
+        <div className="flex items-center gap-5">
+          <div className="w-16 h-16 bg-white rounded-3xl shadow-xl shadow-indigo-100 flex items-center justify-center p-2 border border-slate-100 shrink-0">
+             <img src="https://img.icons8.com/fluency/96/graduation-cap.png" alt="Branding" className="w-full h-full object-contain" />
+          </div>
+          <div>
+            <h2 className="text-4xl font-black text-slate-900 tracking-tight">AI B SEM 4</h2>
+            <p className="text-slate-500 mt-1 font-medium">Academic Content Management & Intelligence</p>
+          </div>
         </div>
         
         <div className="flex items-center gap-3 px-4 py-2 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-2xl">

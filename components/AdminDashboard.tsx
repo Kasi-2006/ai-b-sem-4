@@ -358,12 +358,17 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
           <button onClick={onBack} className="p-3 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-all">
             <ChevronLeft className="w-6 h-6 text-slate-600" />
           </button>
-          <div>
-            <h2 className="text-3xl font-black text-slate-900 tracking-tight">Admin Console</h2>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-              <p className="text-slate-500 text-sm font-bold uppercase tracking-widest text-[10px]">Database Synchronized</p>
-            </div>
+          <div className="flex items-center gap-3">
+             <div className="w-12 h-12 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center p-1.5 shrink-0">
+                <img src="https://img.icons8.com/fluency/96/graduation-cap.png" alt="Logo" className="w-full h-full object-contain" />
+             </div>
+             <div>
+               <h2 className="text-3xl font-black text-slate-900 tracking-tight">Admin Console</h2>
+               <div className="flex items-center gap-2 mt-1">
+                 <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                 <p className="text-slate-500 text-sm font-bold uppercase tracking-widest text-[10px]">Database Synchronized</p>
+               </div>
+             </div>
           </div>
         </div>
         
