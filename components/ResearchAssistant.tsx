@@ -1,7 +1,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI } from "@google/genai";
-import { ChevronLeft, Send, Sparkles, Globe, ExternalLink, Loader2, Bot, User, Trash2 } from 'lucide-react';
+import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
+import { supabase } from '../services/supabaseClient';
+import { ChevronLeft, Send, Sparkles, Globe, ExternalLink, Loader2, Bot, User, Trash2, Database, FileText, Download } from 'lucide-react';
 
 interface ResearchAssistantProps {
   onBack: () => void;
@@ -11,13 +12,14 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   sources?: { title: string; uri: string }[];
+  files?: { id: string; name: string; url: string; unit?: string; category: string }[];
 }
 
 const ResearchAssistant: React.FC<ResearchAssistantProps> = ({ onBack }) => {
   const [messages, setMessages] = useState<Message[]>([
     { 
       role: 'assistant', 
-      content: 'Hello! I am Alex, your Academic Assistant. I can search the web for the latest academic papers, news, and research trends. How can I help you with your studies today?' 
+      content: 'Hello! I am Alex, your Academic Assistant. I can search the web for research or check our library for notes, assignments, and lab resources. How can I help you today?' 
     }
   ]);
   const [input, setInput] = useState('');
@@ -32,6 +34,69 @@ const ResearchAssistant: React.FC<ResearchAssistantProps> = ({ onBack }) => {
     scrollToBottom();
   }, [messages, isLoading]);
 
+  const searchLibraryTool: FunctionDeclaration = {
+    name: "search_library",
+    description: "Search the internal academic database for specific files (PDFs). Use this when the user explicitly asks for notes, assignments, or lab manuals for a specific subject.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        subject: {
+          type: Type.STRING,
+          description: "The name of the subject or module (e.g., 'Python', 'Cloud Computing')."
+        },
+        category: {
+          type: Type.STRING,
+          description: "The category to search: 'Assignments', 'Notes', or 'Lab Resources'."
+        },
+        unit: {
+          type: Type.STRING,
+          description: "The unit number if specified (e.g., 'Unit 1', 'Unit 2', 'Unit 3')."
+        }
+      },
+      required: ["subject", "category"]
+    }
+  };
+
+  const executeLibrarySearch = async (subject: string, category: string, unit?: string) => {
+    try {
+      // 1. Find matching subjects
+      const { data: subjects, error: subError } = await supabase
+        .from('subjects')
+        .select('id')
+        .ilike('name', `%${subject}%`)
+        .eq('category', category);
+
+      if (subError || !subjects || subjects.length === 0) {
+        return [];
+      }
+
+      // 2. Find files for those subjects
+      let query = supabase
+        .from('files')
+        .select('*')
+        .in('subject_id', subjects.map(s => s.id))
+        .eq('category', category);
+
+      if (unit) {
+        query = query.eq('unit_no', unit);
+      }
+
+      const { data: files } = await query.order('uploaded_at', { ascending: false });
+      
+      return files?.map(f => ({
+        id: f.id,
+        name: f.file_name,
+        url: f.file_url,
+        unit: f.unit_no,
+        category: f.category
+      })) || [];
+
+    } catch (err) {
+      console.error("Supabase Search Error:", err);
+      return [];
+    }
+  };
+
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -42,31 +107,56 @@ const ResearchAssistant: React.FC<ResearchAssistantProps> = ({ onBack }) => {
     setIsLoading(true);
 
     try {
-      // API Key configured manually as per request
       const apiKey = "AIzaSyAhuNW3LCpEKEdw54HKSb_w0J8RxP25e7k";
-
       const ai = new GoogleGenAI({ apiKey });
       
-      // Using gemini-3-pro-preview for complex research tasks as per guidelines and UI footer
       const response = await ai.models.generateContent({
         model: "gemini-3-pro-preview",
         contents: userMessage,
         config: {
-          tools: [{ googleSearch: {} }],
-          systemInstruction: "You are Alex, a specialized Academic Assistant. Provide detailed, well-structured information suitable for university students. Always prioritize facts and provide citations if available. Speak in a helpful and scholarly tone. Use markdown for lists and bold text for emphasis."
+          tools: [
+            { googleSearch: {} },
+            { functionDeclarations: [searchLibraryTool] }
+          ],
+          systemInstruction: "You are Alex, an Academic Assistant. If the user asks for internal files (notes, units, assignments), use the search_library tool. If the tool returns files, present them clearly. If no files are found, apologize and offer to search the web instead. Always be helpful and scholarly."
         },
       });
 
-      const text = response.text || "I couldn't process that request.";
-      const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks
-        ?.map((chunk: any) => chunk.web)
-        .filter(Boolean) || [];
+      // Handle Function Calling
+      const functionCall = response.functionCalls?.[0];
+      
+      if (functionCall && functionCall.name === 'search_library') {
+        const args = functionCall.args as any;
+        const foundFiles = await executeLibrarySearch(args.subject, args.category, args.unit);
+        
+        if (foundFiles.length > 0) {
+          const unitText = args.unit ? ` for ${args.unit}` : '';
+          setMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: `I found ${foundFiles.length} resource(s) in the library for **${args.subject}** (${args.category}${unitText}):`,
+            files: foundFiles
+          }]);
+        } else {
+           // If local search fails, maybe try to answer generally or just say not found
+           setMessages(prev => [...prev, { 
+             role: 'assistant', 
+             content: `I searched the library for **${args.subject}** ${args.category}, but I couldn't find any uploaded files matching your criteria. \n\nWould you like me to search the web for external resources instead?` 
+           }]);
+        }
+      } else {
+        // Standard Text Response (Web Search or Chat)
+        const text = response.text || "I couldn't process that request.";
+        const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks
+          ?.map((chunk: any) => chunk.web)
+          .filter(Boolean) || [];
 
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: text,
-        sources: sources.length > 0 ? sources : undefined
-      }]);
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: text,
+          sources: sources.length > 0 ? sources : undefined
+        }]);
+      }
+
     } catch (error: any) {
       console.error("AI Error:", error);
       setMessages(prev => [...prev, { 
@@ -115,16 +205,52 @@ const ResearchAssistant: React.FC<ResearchAssistantProps> = ({ onBack }) => {
               </div>
               
               <div className={`max-w-[80%] space-y-4 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
-                <div className={`inline-block px-8 py-5 rounded-[2rem] text-base leading-relaxed font-medium shadow-sm border ${
-                  msg.role === 'user' 
-                    ? 'bg-indigo-600 text-white border-indigo-500 rounded-tr-none' 
-                    : 'bg-slate-50 text-slate-800 border-slate-100 rounded-tl-none'
-                }`}>
-                  <div className="whitespace-pre-wrap">{msg.content}</div>
-                </div>
+                {msg.content && (
+                  <div className={`inline-block px-8 py-5 rounded-[2rem] text-base leading-relaxed font-medium shadow-sm border ${
+                    msg.role === 'user' 
+                      ? 'bg-indigo-600 text-white border-indigo-500 rounded-tr-none' 
+                      : 'bg-slate-50 text-slate-800 border-slate-100 rounded-tl-none'
+                  }`}>
+                    <div className="whitespace-pre-wrap">{msg.content}</div>
+                  </div>
+                )}
 
+                {/* Display Database Files */}
+                {msg.files && msg.files.length > 0 && (
+                  <div className="bg-indigo-50/50 border border-indigo-100 p-6 rounded-[2rem] space-y-3 animate-in fade-in duration-700 text-left">
+                    <p className="text-[10px] font-black text-indigo-700 uppercase tracking-widest flex items-center gap-2 mb-2">
+                      <Database className="w-3.5 h-3.5" /> Library Assets Found
+                    </p>
+                    <div className="grid grid-cols-1 gap-2">
+                      {msg.files.map((file, fIdx) => (
+                        <div key={fIdx} className="flex items-center justify-between p-3 bg-white rounded-xl border border-indigo-50 shadow-sm hover:border-indigo-200 transition-all">
+                          <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg shrink-0">
+                              <FileText className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-bold text-slate-800 text-sm truncate">{file.name}</p>
+                              {file.unit && <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{file.unit}</p>}
+                            </div>
+                          </div>
+                          <a 
+                            href={file.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            title="Download PDF"
+                          >
+                            <Download className="w-5 h-5" />
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Display Web Sources */}
                 {msg.sources && msg.sources.length > 0 && (
-                  <div className="bg-emerald-50/40 border border-emerald-100 p-6 rounded-[2rem] space-y-3 animate-in fade-in duration-700">
+                  <div className="bg-emerald-50/40 border border-emerald-100 p-6 rounded-[2rem] space-y-3 animate-in fade-in duration-700 text-left">
                     <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest flex items-center gap-2 mb-1">
                       <Globe className="w-3.5 h-3.5" /> Research References
                     </p>
@@ -168,7 +294,7 @@ const ResearchAssistant: React.FC<ResearchAssistantProps> = ({ onBack }) => {
               type="text" 
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask Alex about course materials, complex concepts, or latest research..."
+              placeholder="Ask Alex about course materials, e.g., 'Notes for Cloud Computing Unit 1'..."
               className="w-full pl-8 pr-24 py-6 bg-white border border-slate-200 rounded-[2.5rem] shadow-xl outline-none focus:border-indigo-500 focus:ring-8 focus:ring-indigo-500/5 font-medium text-lg placeholder:text-slate-300"
             />
             <button 
@@ -182,7 +308,7 @@ const ResearchAssistant: React.FC<ResearchAssistantProps> = ({ onBack }) => {
           <div className="flex items-center justify-center gap-6 mt-4 opacity-40">
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Web Grounding Active</span>
             <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
-            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Academic Tone Filter On</span>
+            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Library Sync Active</span>
             <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Gemini 3 Pro Enabled</span>
           </div>

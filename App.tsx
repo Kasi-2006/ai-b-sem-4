@@ -6,8 +6,7 @@ import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
 import FileViewer from './components/FileViewer';
 import Uploader from './components/Uploader';
-import ResearchAssistant from './components/ResearchAssistant';
-import { LogOut, ShieldCheck, X, Sparkles, GraduationCap, Lock, User } from 'lucide-react';
+import { LogOut, ShieldCheck, X, GraduationCap, Lock, User } from 'lucide-react';
 
 const ADMIN_ID = '78945612130';
 const ADMIN_PASS = 'Kasi@2006';
@@ -64,8 +63,6 @@ const App: React.FC = () => {
       case 'upload':
         // Pass user, but Uploader will allow overriding details since we are Guest
         return <Uploader user={user} onBack={() => setCurrentView('home')} />;
-      case 'research':
-        return <ResearchAssistant onBack={() => setCurrentView('home')} />;
       case 'home':
       default:
         return <Dashboard role={user.role} onSelectView={setCurrentView} />;
@@ -113,15 +110,6 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 sm:gap-5">
-          <button 
-            onClick={() => setCurrentView('research')}
-            className={`hidden md:flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-black tracking-wide transition-all ${
-              currentView === 'research' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-500 hover:bg-slate-100'
-            }`}
-          >
-            <Sparkles className="w-4 h-4" />
-            Alex Assistant
-          </button>
 
           <div className="hidden sm:flex flex-col items-end">
             <span className="text-sm font-bold text-slate-800">{user.username}</span>

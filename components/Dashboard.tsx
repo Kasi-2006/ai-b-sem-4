@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { BookOpen, FileText, FlaskConical, UploadCloud, ChevronRight, Loader2, RefreshCw, Wifi, WifiOff, AlertTriangle, Database, Terminal, Copy, Check, PartyPopper, Sparkles } from 'lucide-react';
+import { BookOpen, FileText, FlaskConical, UploadCloud, ChevronRight, Loader2, RefreshCw, Wifi, WifiOff, AlertTriangle, Database, Terminal, Copy, Check, PartyPopper } from 'lucide-react';
 import { UserRole, ViewState } from '../types';
 import { supabase, checkSupabaseConnection } from '../services/supabaseClient';
 
@@ -137,7 +137,6 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
     { id: 'notes', title: 'Notes', description: 'Lecture summaries', icon: <FileText />, color: 'bg-emerald-500', light: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700' },
     { id: 'lab-resources', title: 'Lab Resources', description: 'Lab guides & data', icon: <FlaskConical />, color: 'bg-purple-500', light: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700' },
     { id: 'upload', title: 'Upload Content', description: 'Contribute resources', icon: <UploadCloud />, color: 'bg-amber-500', light: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700' },
-    { id: 'research', title: 'Alex your Assistant', description: 'Personal Academic AI', icon: <Sparkles />, color: 'bg-indigo-500', light: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700' }
   ];
 
   if (connectionStatus === 'checking') {
@@ -275,7 +274,7 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
             <h3 className={`text-2xl font-black ${option.text} mb-2 tracking-tight`}>{option.title}</h3>
             <p className="text-slate-600 text-sm leading-relaxed mb-6 font-medium">{option.description}</p>
             <div className={`flex items-center gap-1 text-sm font-black uppercase tracking-wider ${option.text}`}>
-              {option.id === 'research' ? 'Chat with Alex' : option.id === 'upload' ? 'Upload PDF' : 'Access Library'} <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              {option.id === 'upload' ? 'Upload PDF' : 'Access Library'} <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </div>
           </button>
         ))}
