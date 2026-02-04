@@ -42,8 +42,11 @@ const ResearchAssistant: React.FC<ResearchAssistantProps> = ({ onBack }) => {
     setIsLoading(true);
 
     try {
-      // Use process.env.API_KEY directly as per guidelines
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      // API Key configured manually as per request
+      const apiKey = "AIzaSyAhuNW3LCpEKEdw54HKSb_w0J8RxP25e7k";
+
+      const ai = new GoogleGenAI({ apiKey });
+      
       // Using gemini-3-pro-preview for complex research tasks as per guidelines and UI footer
       const response = await ai.models.generateContent({
         model: "gemini-3-pro-preview",
@@ -68,7 +71,7 @@ const ResearchAssistant: React.FC<ResearchAssistantProps> = ({ onBack }) => {
       console.error("AI Error:", error);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: `Error: ${error.message || "Failed to reach Alex service."}` 
+        content: `System Message: ${error.message || "Failed to reach Alex service."}` 
       }]);
     } finally {
       setIsLoading(false);
@@ -160,7 +163,6 @@ const ResearchAssistant: React.FC<ResearchAssistantProps> = ({ onBack }) => {
 
         {/* Input Area */}
         <div className="p-8 bg-slate-50 border-t border-slate-100">
-          {/* Fixed invalid prop handleSend to onSubmit */}
           <form onSubmit={handleSend} className="relative w-full">
             <input 
               type="text" 
