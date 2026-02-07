@@ -136,7 +136,6 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
     { id: 'assignments', title: 'Assignments', description: 'Course work & tasks', icon: <BookOpen />, color: 'bg-blue-500', light: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700' },
     { id: 'notes', title: 'Notes', description: 'Lecture summaries', icon: <FileText />, color: 'bg-emerald-500', light: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700' },
     { id: 'lab-resources', title: 'Lab Resources', description: 'Lab guides & data', icon: <FlaskConical />, color: 'bg-purple-500', light: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700' },
-    { id: 'upload', title: 'Upload Content', description: 'Contribute resources', icon: <UploadCloud />, color: 'bg-amber-500', light: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700' },
   ];
 
   if (connectionStatus === 'checking') {

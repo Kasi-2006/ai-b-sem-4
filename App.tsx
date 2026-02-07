@@ -50,7 +50,7 @@ const App: React.FC = () => {
   // Authenticated View
   const renderContent = () => {
     if (currentView === 'admin' && user.role === 'Admin') {
-      return <AdminDashboard onBack={() => setCurrentView('home')} />;
+      return <AdminDashboard user={user} onBack={() => setCurrentView('home')} />;
     }
 
     switch (currentView) {
@@ -60,9 +60,6 @@ const App: React.FC = () => {
         return <FileViewer category="Notes" onBack={() => setCurrentView('home')} />;
       case 'lab-resources':
         return <FileViewer category="Lab Resources" onBack={() => setCurrentView('home')} />;
-      case 'upload':
-        // Pass user, but Uploader will allow overriding details since we are Guest
-        return <Uploader user={user} onBack={() => setCurrentView('home')} />;
       case 'home':
       default:
         return <Dashboard role={user.role} onSelectView={setCurrentView} />;

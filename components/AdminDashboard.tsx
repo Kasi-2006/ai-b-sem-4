@@ -1,23 +1,25 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
-import { Subject, AcademicFile, CheckoutLog, Category } from '../types';
+import { Subject, AcademicFile, CheckoutLog, Category, UserProfile } from '../types';
+import Uploader from './Uploader';
 import { 
   ChevronLeft, Plus, Trash2, Loader2, RefreshCcw, Search, ShieldAlert, CheckCircle2,
   Copy, Check, X, Database, Edit2, Eye, MoreVertical, Save, AlertTriangle, Layers, FileText, Mail
 } from 'lucide-react';
 
 interface AdminDashboardProps {
+  user: UserProfile;
   onBack: () => void;
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onBack }) => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [files, setFiles] = useState<AcademicFile[]>([]);
   const [checkouts, setCheckouts] = useState<CheckoutLog[]>([]);
   const [newSubjectName, setNewSubjectName] = useState('');
   const [newSubjectCategory, setNewSubjectCategory] = useState<Category>('Assignments');
-  const [activeTab, setActiveTab] = useState<'subjects' | 'files' | 'logs'>('subjects');
+  const [activeTab, setActiveTab] = useState<'subjects' | 'files' | 'logs' | 'upload'>('subjects');
   const [loading, setLoading] = useState(true);
   const [statusMsg, setStatusMsg] = useState<{type: 'success' | 'error', text: string} | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -119,7 +121,7 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [activeTab]); // Refetch when switching tabs (e.g. after upload)
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -488,8 +490,14 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
         <button onClick={() => setActiveTab('subjects')} className={`px-8 py-3 rounded-xl text-sm font-black transition-all ${activeTab === 'subjects' ? 'bg-white text-indigo-600 shadow-lg' : 'text-slate-500'}`}>Modules</button>
         <button onClick={() => setActiveTab('files')} className={`px-8 py-3 rounded-xl text-sm font-black transition-all ${activeTab === 'files' ? 'bg-white text-indigo-600 shadow-lg' : 'text-slate-500'}`}>Files</button>
         <button onClick={() => setActiveTab('logs')} className={`px-8 py-3 rounded-xl text-sm font-black transition-all ${activeTab === 'logs' ? 'bg-white text-indigo-600 shadow-lg' : 'text-slate-500'}`}>History</button>
+        <button onClick={() => setActiveTab('upload')} className={`px-8 py-3 rounded-xl text-sm font-black transition-all ${activeTab === 'upload' ? 'bg-white text-indigo-600 shadow-lg' : 'text-slate-500'}`}>Upload</button>
       </div>
 
+      {activeTab === 'upload' ? (
+        <div className="mt-8">
+          <Uploader user={user} onBack={() => setActiveTab('subjects')} />
+        </div>
+      ) : (
       <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl min-h-[500px]">
         {statusMsg && (
           <div className={`m-8 p-4 rounded-xl border flex items-center justify-between animate-in slide-in-from-top-4 ${statusMsg.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-red-50 border-red-100 text-red-700'}`}>
@@ -685,6 +693,7 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
           </div>
         )}
       </div>
+      )}
     </div>
   );
 };

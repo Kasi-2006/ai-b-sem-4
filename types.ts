@@ -40,4 +40,4 @@ export interface CheckoutLog {
 
 export type Category = 'Assignments' | 'Notes' | 'Lab Resources';
 
-export type ViewState = 'home' | 'assignments' | 'notes' | 'lab-resources' | 'upload' | 'admin';
+export type ViewState = 'home' | 'assignments' | 'notes' | 'lab-resources' | 'admin';
