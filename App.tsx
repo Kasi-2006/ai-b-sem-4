@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { UserProfile, UserRole, ViewState } from './types';
+import { UserProfile, UserRole, ViewState, Announcement } from './types';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
 import FileViewer from './components/FileViewer';
 import Uploader from './components/Uploader';
-import { LogOut, ShieldCheck, X, GraduationCap, Lock, User } from 'lucide-react';
+import { LogOut, ShieldCheck, X, GraduationCap, Lock, User, Megaphone } from 'lucide-react';
+import { supabase } from './services/supabaseClient';
 
 const ADMIN_ID = '78945612130';
 const ADMIN_PASS = 'Kasi@2006';
@@ -20,6 +21,7 @@ const App: React.FC = () => {
 
   const [currentView, setCurrentView] = useState<ViewState>('home');
   const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [announcement, setAnnouncement] = useState<Announcement | null>(null);
 
   // Sync state with localStorage
   useEffect(() => {
@@ -27,6 +29,33 @@ const App: React.FC = () => {
       localStorage.setItem('academia_user', JSON.stringify(user));
     }
   }, [user]);
+
+  // Fetch Announcement
+  useEffect(() => {
+    const fetchAnnouncement = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('announcements')
+          .select('*')
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (!error && data) {
+          setAnnouncement(data);
+        } else {
+          setAnnouncement(null);
+        }
+      } catch (err) {
+        console.warn('Could not fetch announcements');
+      }
+    };
+
+    fetchAnnouncement();
+    
+    // Optional: Realtime subscription could go here
+  }, [currentView]); // Re-fetch when view changes (e.g. after admin updates)
 
   const handleAdminLogin = (id: string, password?: string) => {
     if (id === ADMIN_ID && password === ADMIN_PASS) {
@@ -62,13 +91,28 @@ const App: React.FC = () => {
         return <FileViewer category="Lab Resources" onBack={() => setCurrentView('home')} />;
       case 'home':
       default:
-        return <Dashboard role={user.role} onSelectView={setCurrentView} />;
+        return <Dashboard user={user} onSelectView={setCurrentView} />;
     }
   };
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       
+      {/* Announcement Bar */}
+      {announcement && (
+        <div className="bg-white border-b border-red-100 relative z-[60] overflow-hidden h-12 flex items-center">
+          <div className="absolute left-0 top-0 bottom-0 z-10 bg-white px-4 md:px-6 flex items-center gap-2 border-r border-red-100 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+            <Megaphone className="w-5 h-5 text-red-600 animate-pulse" />
+            <span className="text-xs font-black text-red-900 uppercase tracking-widest hidden md:block">Announcement</span>
+          </div>
+          <div className="w-full flex items-center">
+             <div className="whitespace-nowrap animate-marquee text-red-600 font-bold text-sm tracking-wide">
+               {announcement.message}
+             </div>
+          </div>
+        </div>
+      )}
+
       {/* Admin Login Modal */}
       {showAdminLogin && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">

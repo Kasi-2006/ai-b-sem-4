@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
-import { Subject, AcademicFile, CheckoutLog, Category, UserProfile } from '../types';
+import { Subject, AcademicFile, CheckoutLog, Category, UserProfile, Report, Announcement } from '../types';
 import Uploader from './Uploader';
 import { 
   ChevronLeft, Plus, Trash2, Loader2, RefreshCcw, Search, ShieldAlert, CheckCircle2,
-  Copy, Check, X, Database, Edit2, Eye, MoreVertical, Save, AlertTriangle, Layers, FileText, Mail
+  Copy, Check, X, Database, Edit2, Eye, MoreVertical, Save, AlertTriangle, Layers, FileText, Mail, Flag, Megaphone
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -17,15 +17,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onBack }) => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [files, setFiles] = useState<AcademicFile[]>([]);
   const [checkouts, setCheckouts] = useState<CheckoutLog[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
   const [newSubjectName, setNewSubjectName] = useState('');
   const [newSubjectCategory, setNewSubjectCategory] = useState<Category>('Assignments');
-  const [activeTab, setActiveTab] = useState<'subjects' | 'files' | 'logs' | 'upload'>('subjects');
+  const [activeTab, setActiveTab] = useState<'subjects' | 'files' | 'logs' | 'upload' | 'reports'>('subjects');
   const [loading, setLoading] = useState(true);
   const [statusMsg, setStatusMsg] = useState<{type: 'success' | 'error', text: string} | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showFixModal, setShowFixModal] = useState(false);
   const [copied, setCopied] = useState(false);
   
+  // Announcement State
+  const [announcementMsg, setAnnouncementMsg] = useState('');
+  const [activeAnnouncement, setActiveAnnouncement] = useState<Announcement | null>(null);
+  const [updatingAnnouncement, setUpdatingAnnouncement] = useState(false);
+
   // Menu & Modal State (Subjects)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [renameModal, setRenameModal] = useState<{ isOpen: boolean, subject: Subject | null, newName: string }>({ 
@@ -49,12 +55,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onBack }) => {
     file: null
   });
 
-  const FIX_SQL = `-- Master Setup Script
-DROP TABLE IF EXISTS checkouts;
-DROP TABLE IF EXISTS files;
-DROP TABLE IF EXISTS subjects;
+  // Modal State (Reports)
+  const [reportDeleteModal, setReportDeleteModal] = useState<{ isOpen: boolean, reportId: string | null }>({
+    isOpen: false,
+    reportId: null
+  });
 
-CREATE TABLE subjects (
+  const FIX_SQL = `-- Infrastructure Update (Safe Mode)
+-- This script adds missing tables (like reports) without deleting existing data.
+
+CREATE TABLE IF NOT EXISTS subjects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   category TEXT NOT NULL CHECK (category IN ('Assignments', 'Notes', 'Lab Resources')),
@@ -62,7 +72,7 @@ CREATE TABLE subjects (
   UNIQUE (name, category)
 );
 
-CREATE TABLE files (
+CREATE TABLE IF NOT EXISTS files (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   subject_id UUID REFERENCES subjects(id) ON DELETE CASCADE,
   category TEXT NOT NULL CHECK (category IN ('Assignments', 'Notes', 'Lab Resources')),
@@ -75,7 +85,7 @@ CREATE TABLE files (
   uploaded_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE checkouts (
+CREATE TABLE IF NOT EXISTS checkouts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   file_id UUID NOT NULL,
   file_name TEXT NOT NULL,
@@ -84,10 +94,30 @@ CREATE TABLE checkouts (
   user_role TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  description TEXT NOT NULL,
+  reported_by TEXT NOT NULL,
+  status TEXT DEFAULT 'Open',
+  timestamp TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS announcements (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  message TEXT NOT NULL,
+  type TEXT DEFAULT 'info',
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Policies (Re-apply safe)
 ALTER TABLE subjects DISABLE ROW LEVEL SECURITY;
 ALTER TABLE files DISABLE ROW LEVEL SECURITY;
 ALTER TABLE checkouts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE reports DISABLE ROW LEVEL SECURITY;
+ALTER TABLE announcements DISABLE ROW LEVEL SECURITY;
 
+-- Storage
 INSERT INTO storage.buckets (id, name, public) 
 VALUES ('academic-files', 'academic-files', true)
 ON CONFLICT (id) DO NOTHING;
@@ -98,10 +128,12 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [subRes, fileRes, logRes] = await Promise.all([
+      const [subRes, fileRes, logRes, reportRes, announceRes] = await Promise.all([
         supabase.from('subjects').select('*').order('name'),
         supabase.from('files').select('*').order('uploaded_at', { ascending: false }),
-        supabase.from('checkouts').select('*').order('timestamp', { ascending: false }).limit(100)
+        supabase.from('checkouts').select('*').order('timestamp', { ascending: false }).limit(100),
+        supabase.from('reports').select('*').order('timestamp', { ascending: false }),
+        supabase.from('announcements').select('*').eq('is_active', true).order('created_at', { ascending: false }).limit(1).single()
       ]);
       
       if (subRes.error) throw subRes.error;
@@ -111,9 +143,19 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
       setSubjects(subRes.data || []);
       setFiles(fileRes.data || []);
       setCheckouts(logRes.data || []);
+      setReports(reportRes.data || []);
+      
+      if (announceRes.data) {
+        setActiveAnnouncement(announceRes.data);
+      } else {
+        setActiveAnnouncement(null);
+      }
     } catch (err: any) {
       console.error('Error fetching admin data:', err);
-      setStatusMsg({ type: 'error', text: 'Sync Error: ' + err.message });
+      // Don't error out completely if reports table doesn't exist yet (for older setups)
+      if (err.message && !err.message.includes('reports')) {
+        setStatusMsg({ type: 'error', text: 'Sync Error: ' + err.message });
+      }
     } finally {
       setLoading(false);
     }
@@ -151,6 +193,85 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
       await fetchData(); 
     } catch (err: any) {
       setStatusMsg({ type: 'error', text: err.message });
+      setLoading(false);
+    }
+  };
+
+  // --- ANNOUNCEMENT MANAGEMENT ---
+  const handlePostAnnouncement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!announcementMsg.trim()) return;
+    
+    setUpdatingAnnouncement(true);
+    try {
+      // Deactivate all previous announcements first (optional but good for cleanup)
+      await supabase.from('announcements').update({ is_active: false }).neq('id', '00000000-0000-0000-0000-000000000000'); // Dummy condition to allow update all
+
+      const { data, error } = await supabase.from('announcements').insert({
+        message: announcementMsg.trim(),
+        is_active: true
+      }).select().single();
+
+      if (error) throw error;
+
+      setActiveAnnouncement(data);
+      setAnnouncementMsg('');
+      setStatusMsg({ type: 'success', text: 'Announcement posted.' });
+    } catch (err: any) {
+      console.error(err);
+      setStatusMsg({ type: 'error', text: 'Failed to post announcement.' });
+    } finally {
+      setUpdatingAnnouncement(false);
+    }
+  };
+
+  const handleClearAnnouncement = async () => {
+    if (!activeAnnouncement) return;
+    setUpdatingAnnouncement(true);
+    try {
+       await supabase.from('announcements').update({ is_active: false }).eq('id', activeAnnouncement.id);
+       setActiveAnnouncement(null);
+       setStatusMsg({ type: 'success', text: 'Announcement cleared.' });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUpdatingAnnouncement(false);
+    }
+  };
+
+  // --- REPORT MANAGEMENT ---
+  const handleResolveReport = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'Open' ? 'Resolved' : 'Open';
+    try {
+      await supabase.from('reports').update({ status: newStatus }).eq('id', id);
+      setReports(prev => prev.map(r => r.id === id ? { ...r, status: newStatus as any } : r));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteReport = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setReportDeleteModal({ isOpen: true, reportId: id });
+  };
+
+  const confirmDeleteReport = async () => {
+    const { reportId } = reportDeleteModal;
+    if (!reportId) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.from('reports').delete().eq('id', reportId);
+      if (error) throw error;
+      
+      setReports(prev => prev.filter(r => r.id !== reportId));
+      setStatusMsg({ type: 'success', text: 'Report deleted permanently.' });
+      setReportDeleteModal({ isOpen: false, reportId: null });
+    } catch (err: any) {
+      console.error(err);
+      setStatusMsg({ type: 'error', text: 'Failed to delete report: ' + err.message });
+    } finally {
       setLoading(false);
     }
   };
@@ -451,6 +572,41 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
         </div>
       )}
 
+      {/* REPORT Delete Confirmation Modal */}
+      {reportDeleteModal.isOpen && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-[2rem] shadow-2xl border border-slate-200 p-8 animate-in zoom-in-95 duration-200">
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="p-4 bg-red-50 text-red-500 rounded-full mb-4 border border-red-100">
+                <Trash2 className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 mb-2">Delete Report?</h3>
+              <p className="text-slate-500 text-sm font-medium leading-relaxed">
+                Are you sure you want to permanently delete this report?
+                <br/>This action cannot be undone.
+              </p>
+            </div>
+            
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setReportDeleteModal({ isOpen: false, reportId: null })}
+                className="flex-1 py-3 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition-all"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmDeleteReport}
+                disabled={loading}
+                className="flex-1 py-3 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 shadow-lg shadow-red-100 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showFixModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl border border-slate-200 p-8">
@@ -486,11 +642,65 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
         </div>
       </div>
 
-      <div className="flex gap-3 p-1.5 bg-slate-200/50 rounded-2xl w-fit">
-        <button onClick={() => setActiveTab('subjects')} className={`px-8 py-3 rounded-xl text-sm font-black transition-all ${activeTab === 'subjects' ? 'bg-white text-indigo-600 shadow-lg' : 'text-slate-500'}`}>Modules</button>
-        <button onClick={() => setActiveTab('files')} className={`px-8 py-3 rounded-xl text-sm font-black transition-all ${activeTab === 'files' ? 'bg-white text-indigo-600 shadow-lg' : 'text-slate-500'}`}>Files</button>
-        <button onClick={() => setActiveTab('logs')} className={`px-8 py-3 rounded-xl text-sm font-black transition-all ${activeTab === 'logs' ? 'bg-white text-indigo-600 shadow-lg' : 'text-slate-500'}`}>History</button>
-        <button onClick={() => setActiveTab('upload')} className={`px-8 py-3 rounded-xl text-sm font-black transition-all ${activeTab === 'upload' ? 'bg-white text-indigo-600 shadow-lg' : 'text-slate-500'}`}>Upload</button>
+      {/* ANNOUNCEMENT CENTER */}
+      <div className="bg-gradient-to-br from-indigo-900 to-slate-900 p-8 rounded-[2.5rem] border border-indigo-500/20 shadow-xl relative overflow-hidden">
+        <div className="relative z-10 flex flex-col md:flex-row gap-8 items-start">
+          <div className="flex-1">
+             <div className="flex items-center gap-3 mb-4">
+               <div className="p-2 bg-white/10 rounded-lg text-white">
+                 <Megaphone className="w-6 h-6" />
+               </div>
+               <h3 className="text-xl font-black text-white">Broadcast Center</h3>
+             </div>
+             <p className="text-indigo-200 text-sm font-medium mb-4 max-w-md">
+               Post an announcement to the top of the student dashboard. Only one message can be active at a time.
+             </p>
+             {activeAnnouncement && (
+               <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/20 text-emerald-300 rounded-lg text-xs font-bold uppercase tracking-widest border border-emerald-500/30 mb-4">
+                 <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+                 Active: "{activeAnnouncement.message}"
+               </div>
+             )}
+          </div>
+          
+          <div className="flex-1 w-full">
+            <form onSubmit={handlePostAnnouncement} className="flex flex-col gap-3">
+              <input 
+                type="text" 
+                value={announcementMsg} 
+                onChange={(e) => setAnnouncementMsg(e.target.value)} 
+                placeholder="Type your announcement here..." 
+                className="w-full px-6 py-4 bg-white/10 border border-white/10 rounded-2xl outline-none font-bold text-white placeholder:text-white/30 focus:bg-white/20 transition-all"
+              />
+              <div className="flex gap-3">
+                 <button 
+                  type="button" 
+                  onClick={handleClearAnnouncement}
+                  disabled={!activeAnnouncement || updatingAnnouncement}
+                  className="px-6 py-3 bg-white/5 hover:bg-white/10 text-white/70 font-bold rounded-xl transition-all disabled:opacity-50 text-xs uppercase tracking-wider"
+                 >
+                   Clear Active
+                 </button>
+                 <button 
+                  type="submit" 
+                  disabled={!announcementMsg.trim() || updatingAnnouncement}
+                  className="flex-1 px-6 py-3 bg-white text-indigo-900 font-black rounded-xl hover:bg-indigo-50 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                 >
+                   {updatingAnnouncement ? <Loader2 className="w-4 h-4 animate-spin" /> : <Megaphone className="w-4 h-4" />}
+                   Broadcast
+                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-3 p-1.5 bg-slate-200/50 rounded-2xl w-fit overflow-x-auto">
+        <button onClick={() => setActiveTab('subjects')} className={`px-6 py-3 rounded-xl text-sm font-black transition-all whitespace-nowrap ${activeTab === 'subjects' ? 'bg-white text-indigo-600 shadow-lg' : 'text-slate-500'}`}>Modules</button>
+        <button onClick={() => setActiveTab('files')} className={`px-6 py-3 rounded-xl text-sm font-black transition-all whitespace-nowrap ${activeTab === 'files' ? 'bg-white text-indigo-600 shadow-lg' : 'text-slate-500'}`}>Files</button>
+        <button onClick={() => setActiveTab('logs')} className={`px-6 py-3 rounded-xl text-sm font-black transition-all whitespace-nowrap ${activeTab === 'logs' ? 'bg-white text-indigo-600 shadow-lg' : 'text-slate-500'}`}>History</button>
+        <button onClick={() => setActiveTab('reports')} className={`px-6 py-3 rounded-xl text-sm font-black transition-all whitespace-nowrap ${activeTab === 'reports' ? 'bg-white text-indigo-600 shadow-lg' : 'text-slate-500'}`}>Reports</button>
+        <button onClick={() => setActiveTab('upload')} className={`px-6 py-3 rounded-xl text-sm font-black transition-all whitespace-nowrap ${activeTab === 'upload' ? 'bg-white text-indigo-600 shadow-lg' : 'text-slate-500'}`}>Upload</button>
       </div>
 
       {activeTab === 'upload' ? (
@@ -666,6 +876,69 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
               </table>
               {files.length === 0 && !loading && (
                 <div className="py-20 text-center text-slate-300 font-black uppercase tracking-[0.3em] text-xs">No files available</div>
+              )}
+            </div>
+          </div>
+        ) : activeTab === 'reports' ? (
+          <div className="p-8">
+             <div className="overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left">
+                <thead className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                  <tr>
+                    <th className="pb-4 px-4">Status</th>
+                    <th className="pb-4 px-4">Issue Description</th>
+                    <th className="pb-4 px-4">Reported By</th>
+                    <th className="pb-4 px-4">Date</th>
+                    <th className="pb-4 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {reports.map((report) => (
+                    <tr key={report.id} className="hover:bg-slate-50/50">
+                      <td className="py-4 px-4">
+                        <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${
+                          report.status === 'Resolved' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                          {report.status}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 max-w-md">
+                        <p className="text-sm font-bold text-slate-700 line-clamp-2">{report.description}</p>
+                      </td>
+                      <td className="py-4 px-4 text-xs font-bold text-slate-600">
+                        {report.reported_by}
+                      </td>
+                      <td className="py-4 px-4 text-[10px] text-slate-400 font-medium">
+                        {new Date(report.timestamp).toLocaleDateString()}
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                           <button 
+                            onClick={() => handleResolveReport(report.id, report.status)}
+                            title={report.status === 'Open' ? "Mark Resolved" : "Mark Open"}
+                            className={`p-2 rounded-xl transition-all ${
+                              report.status === 'Open' 
+                                ? 'text-emerald-500 hover:bg-emerald-50' 
+                                : 'text-slate-400 hover:bg-slate-100'
+                            }`}
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={(e) => handleDeleteReport(e, report.id)}
+                            title="Delete Report"
+                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {reports.length === 0 && !loading && (
+                <div className="py-20 text-center text-slate-300 font-black uppercase tracking-[0.3em] text-xs">No reports found</div>
               )}
             </div>
           </div>

@@ -38,6 +38,22 @@ export interface CheckoutLog {
   user_role: string;
 }
 
+export interface Report {
+  id: string;
+  description: string;
+  reported_by: string;
+  status: 'Open' | 'Resolved';
+  timestamp: string;
+}
+
+export interface Announcement {
+  id: string;
+  message: string;
+  type: 'info' | 'alert' | 'success';
+  is_active: boolean;
+  created_at: string;
+}
+
 export type Category = 'Assignments' | 'Notes' | 'Lab Resources';
 
 export type ViewState = 'home' | 'assignments' | 'notes' | 'lab-resources' | 'admin';

@@ -31,6 +31,20 @@
         .animate-pulse-subtle {
             animation: pulse-subtle 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
+        
+        /* Marquee Animation */
+        @keyframes marquee {
+            0% { transform: translateX(100vw); }
+            100% { transform: translateX(-100%); }
+        }
+        .animate-marquee {
+            display: inline-block;
+            white-space: nowrap;
+            animation: marquee 25s linear infinite;
+        }
+        .animate-marquee:hover {
+            animation-play-state: paused;
+        }
     </style>
 <script type="importmap">
 {

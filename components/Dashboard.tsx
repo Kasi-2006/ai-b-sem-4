@@ -1,29 +1,33 @@
 
 import React, { useState, useEffect } from 'react';
-import { BookOpen, FileText, FlaskConical, UploadCloud, ChevronRight, Loader2, RefreshCw, Wifi, WifiOff, AlertTriangle, Database, Terminal, Copy, Check, PartyPopper } from 'lucide-react';
-import { UserRole, ViewState } from '../types';
+import { BookOpen, FileText, FlaskConical, UploadCloud, ChevronRight, Loader2, RefreshCw, Wifi, WifiOff, AlertTriangle, Database, Terminal, Copy, Check, PartyPopper, Flag, X, Send } from 'lucide-react';
+import { UserProfile, ViewState } from '../types';
 import { supabase, checkSupabaseConnection } from '../services/supabaseClient';
 
 interface DashboardProps {
-  role: UserRole;
+  user: UserProfile;
   onSelectView: (view: ViewState) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ role, onSelectView }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, onSelectView }) => {
   const [stats, setStats] = useState({ subjects: 0, files: 0, checkouts: 0, loading: true });
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'online' | 'offline' | 'needs-setup'>('checking');
   const [connError, setConnError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Report Problem State
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportText, setReportText] = useState('');
+  const [isReporting, setIsReporting] = useState(false);
+  const [reportSuccess, setReportSuccess] = useState(false);
 
   const SQL_SCHEMA = `-- 1. CLEANUP PREVIOUS TABLES (FRESH INSTALL)
-DROP TABLE IF EXISTS checkouts;
-DROP TABLE IF EXISTS files;
-DROP TABLE IF EXISTS subjects;
+-- Note: 'reports' table is added safely below
 
--- 2. CREATE CORE TABLES
-CREATE TABLE subjects (
+-- 2. ENSURE TABLES EXIST
+CREATE TABLE IF NOT EXISTS subjects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   category TEXT NOT NULL CHECK (category IN ('Assignments', 'Notes', 'Lab Resources')),
@@ -31,7 +35,7 @@ CREATE TABLE subjects (
   UNIQUE (name, category)
 );
 
-CREATE TABLE files (
+CREATE TABLE IF NOT EXISTS files (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   subject_id UUID REFERENCES subjects(id) ON DELETE CASCADE,
   category TEXT NOT NULL CHECK (category IN ('Assignments', 'Notes', 'Lab Resources')),
@@ -44,7 +48,7 @@ CREATE TABLE files (
   uploaded_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE checkouts (
+CREATE TABLE IF NOT EXISTS checkouts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   file_id UUID NOT NULL,
   file_name TEXT NOT NULL,
@@ -53,10 +57,30 @@ CREATE TABLE checkouts (
   user_role TEXT NOT NULL
 );
 
+-- NEW: Reports Table
+CREATE TABLE IF NOT EXISTS reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  description TEXT NOT NULL,
+  reported_by TEXT NOT NULL,
+  status TEXT DEFAULT 'Open',
+  timestamp TIMESTAMPTZ DEFAULT now()
+);
+
+-- NEW: Announcements Table
+CREATE TABLE IF NOT EXISTS announcements (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  message TEXT NOT NULL,
+  type TEXT DEFAULT 'info',
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- 3. DISABLE PERMISSION CHECKS (RLS)
 ALTER TABLE subjects DISABLE ROW LEVEL SECURITY;
 ALTER TABLE files DISABLE ROW LEVEL SECURITY;
 ALTER TABLE checkouts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE reports DISABLE ROW LEVEL SECURITY;
+ALTER TABLE announcements DISABLE ROW LEVEL SECURITY;
 
 -- 4. INITIALIZE STORAGE
 INSERT INTO storage.buckets (id, name, public) 
@@ -126,6 +150,31 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
     setShowSuccessToast(true);
     setTimeout(() => setShowSuccessToast(false), 5000);
     fetchStats();
+  };
+
+  const handleReportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reportText.trim()) return;
+
+    setIsReporting(true);
+    try {
+      const { error } = await supabase.from('reports').insert({
+        description: reportText.trim(),
+        reported_by: user.username || 'Guest',
+      });
+
+      if (error) throw error;
+      setReportSuccess(true);
+      setReportText('');
+      setTimeout(() => {
+        setShowReportModal(false);
+        setReportSuccess(false);
+      }, 2000);
+    } catch (err: any) {
+      alert('Failed to submit report: ' + err.message);
+    } finally {
+      setIsReporting(false);
+    }
   };
 
   useEffect(() => {
@@ -243,6 +292,55 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
         </div>
       )}
 
+      {/* Report Problem Modal */}
+      {showReportModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-[2rem] shadow-2xl border border-slate-200 p-8 animate-in zoom-in-95 relative">
+            <button 
+              onClick={() => setShowReportModal(false)}
+              className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full transition-colors"
+            >
+              <X className="w-5 h-5 text-slate-500" />
+            </button>
+
+            <div className="text-center mb-6">
+              <div className="w-12 h-12 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-red-100">
+                <Flag className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900">Report a Problem</h3>
+              <p className="text-sm text-slate-500 font-medium mt-1">Found a bug or missing content? Let us know.</p>
+            </div>
+
+            {reportSuccess ? (
+              <div className="py-8 text-center animate-in zoom-in">
+                <div className="inline-flex p-3 bg-emerald-100 text-emerald-600 rounded-full mb-3">
+                  <Check className="w-6 h-6" />
+                </div>
+                <p className="font-bold text-slate-800">Report Submitted!</p>
+              </div>
+            ) : (
+              <form onSubmit={handleReportSubmit}>
+                <textarea
+                  autoFocus
+                  value={reportText}
+                  onChange={(e) => setReportText(e.target.value)}
+                  placeholder="Describe the issue (e.g., 'Unit 2 notes for Python link is broken')..."
+                  className="w-full h-32 p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 font-medium text-slate-800 resize-none mb-4"
+                />
+                <button
+                  type="submit"
+                  disabled={isReporting || !reportText.trim()}
+                  className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                >
+                  {isReporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  Submit Report
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-5">
           <div className="w-16 h-16 bg-white rounded-3xl shadow-xl shadow-indigo-100 flex items-center justify-center p-2 border border-slate-100 shrink-0">
@@ -279,7 +377,17 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
         ))}
       </div>
 
-      <div className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-xl mt-12 relative overflow-hidden">
+      <div className="flex justify-center mt-6">
+        <button 
+          onClick={() => setShowReportModal(true)}
+          className="flex items-center gap-2 px-6 py-3 bg-red-50 text-red-500 hover:bg-red-100 rounded-2xl text-xs font-black uppercase tracking-widest border border-red-100 transition-all"
+        >
+          <Flag className="w-4 h-4" />
+          Report a Problem
+        </button>
+      </div>
+
+      <div className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-xl mt-8 relative overflow-hidden">
         <h3 className="text-xl font-black text-slate-900 mb-8 flex items-center gap-3">
           <RefreshCw className="w-6 h-6 text-indigo-500" /> System Analytics
         </h3>
@@ -288,7 +396,7 @@ CREATE POLICY "Public Access" ON storage.objects FOR ALL USING ( bucket_id = 'ac
           <StatBox label="Modules" value={stats.subjects} loading={stats.loading} />
           <StatBox label="Files" value={stats.files} loading={stats.loading} />
           <StatBox label="Checkouts" value={stats.checkouts} loading={stats.loading} highlight />
-          <StatBox label="Role" value={role} loading={false} isRole />
+          <StatBox label="Role" value={user.role} loading={false} isRole />
         </div>
       </div>
     </div>
