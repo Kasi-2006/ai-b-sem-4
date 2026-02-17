@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
-import { Subject, AcademicFile, Category } from '../types';
+import { Subject, AcademicFile, Category, UserProfile } from '../types';
 import { 
   ChevronLeft, Download, FileText, Search, Loader2, 
   CheckCircle, AlertCircle, Eye, X, Layers, History, ExternalLink
 } from 'lucide-react';
 
 interface FileViewerProps {
+  user: UserProfile;
   category: Category;
   onBack: () => void;
 }
@@ -15,7 +16,7 @@ interface FileViewerProps {
 const UNITS = ['Unit 1', 'Unit 2', 'Unit 3', 'Unit 4', 'Unit 5'];
 const EXAM_TYPES = ['Mid', 'Sem'];
 
-const FileViewer: React.FC<FileViewerProps> = ({ category, onBack }) => {
+const FileViewer: React.FC<FileViewerProps> = ({ user, category, onBack }) => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
   const [selectedTag, setSelectedTag] = useState<string>('all');
@@ -92,7 +93,7 @@ const FileViewer: React.FC<FileViewerProps> = ({ category, onBack }) => {
         file_name: file.file_name,
         category: file.category,
         timestamp: new Date().toISOString(),
-        user_role: 'Student (' + type + ')'
+        user_role: `${user.username} (${type})`
       });
     } catch (err) {
       console.warn('Logging failed:', err);
