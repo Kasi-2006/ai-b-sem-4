@@ -4,7 +4,7 @@ import { supabase } from '../services/supabaseClient';
 import { Subject, AcademicFile, Category } from '../types';
 import { 
   ChevronLeft, Download, FileText, Search, Loader2, 
-  CheckCircle, AlertCircle, Eye, X, Layers, History
+  CheckCircle, AlertCircle, Eye, X, Layers, History, ExternalLink
 } from 'lucide-react';
 
 interface FileViewerProps {
@@ -141,6 +141,13 @@ const FileViewer: React.FC<FileViewerProps> = ({ category, onBack }) => {
             </div>
             <div className="flex items-center gap-2">
               <button 
+                onClick={() => window.open(viewingFile.file_url, '_blank')}
+                className="flex items-center gap-2 px-4 py-3 bg-white/20 text-white hover:bg-white/30 rounded-2xl transition-all text-xs font-black uppercase tracking-widest"
+                title="Open directly in browser"
+              >
+                <ExternalLink className="w-4 h-4" /> Open Direct
+              </button>
+              <button 
                 onClick={() => handleDownload(viewingFile)}
                 className="p-3 text-white hover:bg-white/10 rounded-2xl transition-all"
                 title="Download"
@@ -156,12 +163,20 @@ const FileViewer: React.FC<FileViewerProps> = ({ category, onBack }) => {
             </div>
           </div>
           <div className="flex-1 bg-white rounded-[2rem] overflow-hidden shadow-2xl relative">
+            <div className="absolute inset-0 flex flex-col items-center justify-center -z-10 bg-slate-50">
+               <Loader2 className="w-10 h-10 text-indigo-200 animate-spin mb-4" />
+               <p className="text-slate-400 font-bold text-sm">Preparing Document Viewer...</p>
+            </div>
             <iframe 
-              src={`${viewingFile.file_url}#toolbar=0`} 
-              className="w-full h-full border-none"
+              // Using Google GView as a proxy to avoid Chrome "Blocked" or "Refused to Connect" errors
+              src={`https://docs.google.com/gview?url=${encodeURIComponent(viewingFile.file_url)}&embedded=true`}
+              className="w-full h-full border-none relative z-10"
               title="PDF Viewer"
             />
           </div>
+          <p className="text-center mt-4 text-slate-400 text-xs font-medium">
+            Having trouble? Click <button onClick={() => window.open(viewingFile.file_url, '_blank')} className="text-indigo-400 font-bold underline">here</button> to open the file directly.
+          </p>
         </div>
       )}
 
