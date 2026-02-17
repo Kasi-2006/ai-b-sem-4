@@ -1,34 +1,76 @@
 
 import React, { useState, useEffect } from 'react';
-import { UserProfile, UserRole, ViewState, Announcement } from './types';
+import { UserProfile, ViewState, Announcement } from './types';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
 import FileViewer from './components/FileViewer';
-import Uploader from './components/Uploader';
-import { LogOut, ShieldCheck, X, GraduationCap, Lock, User, Megaphone } from 'lucide-react';
+import StudentLogin from './components/StudentLogin';
+import { LogOut, ShieldCheck, X, GraduationCap, Megaphone, Loader2 } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
 
-const ADMIN_ID = '78945612130';
-const ADMIN_PASS = 'Kasi@2006';
-
 const App: React.FC = () => {
-  // Default to Guest user if no session exists - DIRECT ACCESS
-  const [user, setUser] = useState<UserProfile>(() => {
-    const saved = localStorage.getItem('academia_user');
-    return saved ? JSON.parse(saved) : { id: 'guest', username: 'Student', role: 'User' };
-  });
-
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const [currentView, setCurrentView] = useState<ViewState>('home');
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
 
-  // Sync state with localStorage
+  // Initialize Auth Listener
   useEffect(() => {
-    if (user.id !== 'guest') {
-      localStorage.setItem('academia_user', JSON.stringify(user));
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        mapSessionToUser(session.user);
+      } else {
+        setLoading(false);
+      }
+    });
+
+    // Listen for changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        mapSessionToUser(session.user);
+      } else {
+        // If we are currently logged in as a hardcoded admin, don't clear user just because Supabase has no session
+        // However, if we are logging out, handleLogout handles clearing.
+        // We only clear here if we want to ensure sync with Supabase.
+        // For simplicity in this hybrid model, we'll let handleLogout manage the state clearing 
+        // OR only clear if we are not in hardcoded admin mode.
+        // But since hardcoded admin doesn't trigger this event, we are safe.
+        // IF a regular user logs out, this fires.
+        
+        // Safety check: if we have a hardcoded admin active, ignore this event unless we want to support concurrent sessions (unlikely)
+        if (user?.id === 'sys_admin_789') {
+           return;
+        }
+
+        setUser(null);
+        setCurrentView('home');
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []); // Fixed: Removed user dependency to prevent infinite loop
+
+  const mapSessionToUser = (authUser: any) => {
+    const metadata = authUser.user_metadata || {};
+    
+    const profile: UserProfile = {
+      id: authUser.id,
+      email: authUser.email,
+      username: metadata.username || metadata.full_name || 'User',
+      rollNo: metadata.roll_no || '',
+      role: (metadata.role as 'Admin' | 'User') || 'User'
+    };
+    
+    setUser(profile);
+    setLoading(false);
+    if (profile.role === 'Admin') {
+      setCurrentView('admin');
     }
-  }, [user]);
+  };
 
   // Fetch Announcement
   useEffect(() => {
@@ -40,7 +82,7 @@ const App: React.FC = () => {
           .eq('is_active', true)
           .order('created_at', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         if (!error && data) {
           setAnnouncement(data);
@@ -52,32 +94,35 @@ const App: React.FC = () => {
       }
     };
 
-    fetchAnnouncement();
-    
-    // Optional: Realtime subscription could go here
-  }, [currentView]); // Re-fetch when view changes (e.g. after admin updates)
-
-  const handleAdminLogin = (id: string, password?: string) => {
-    if (id === ADMIN_ID && password === ADMIN_PASS) {
-      const adminUser: UserProfile = { id, username: 'System Admin', role: 'Admin' };
-      setUser(adminUser);
-      setShowAdminLogin(false);
-      setCurrentView('admin');
-    } else {
-      alert("Access Denied: Invalid Admin Credentials.");
+    if (user) {
+      fetchAnnouncement();
     }
-  };
+  }, [currentView, user]);
 
-  const handleLogout = () => {
-    // Reset to Guest Student instead of null
-    const guestUser: UserProfile = { id: 'guest', username: 'Student', role: 'User' };
-    setUser(guestUser);
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
     setCurrentView('home');
-    localStorage.removeItem('academia_user');
+    setShowAdminLogin(false);
   };
 
-  // Authenticated View
+  const handleManualAdminLogin = () => {
+    // Hardcoded Admin Profile
+    setUser({
+      id: 'sys_admin_789',
+      username: 'System Administrator',
+      role: 'Admin',
+      email: 'admin@college.edu',
+      rollNo: 'SYS-ADMIN'
+    });
+    setCurrentView('admin');
+    setShowAdminLogin(false); // Reset this so if they logout they go back to main screen
+  };
+
+  // Authenticated View Router
   const renderContent = () => {
+    if (!user) return null;
+
     if (currentView === 'admin' && user.role === 'Admin') {
       return <AdminDashboard user={user} onBack={() => setCurrentView('home')} />;
     }
@@ -97,6 +142,39 @@ const App: React.FC = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+        <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
+        <p className="text-slate-500 font-bold tracking-widest text-xs uppercase">Authenticating...</p>
+      </div>
+    );
+  }
+
+  // If not logged in, show Auth Screens
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        {showAdminLogin ? (
+          <div className="w-full max-w-md relative">
+             <button 
+              onClick={() => setShowAdminLogin(false)} 
+              className="absolute -top-12 left-0 text-slate-400 hover:text-slate-600 font-bold text-sm flex items-center gap-2 transition-colors"
+            >
+              <X className="w-4 h-4" /> Back to Student Login
+            </button>
+            <Login onLogin={handleManualAdminLogin} /> 
+          </div>
+        ) : (
+          <StudentLogin 
+            onJoin={() => {}} // Not needed as auth listener handles it
+            onAdminRequest={() => setShowAdminLogin(true)} 
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       
@@ -115,33 +193,12 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Admin Login Modal */}
-      {showAdminLogin && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="relative w-full max-w-md">
-            <button 
-              onClick={() => setShowAdminLogin(false)} 
-              className="absolute -top-12 right-0 text-white/80 hover:text-white font-bold text-sm flex items-center gap-2 transition-colors"
-            >
-              Close <X className="w-5 h-5" />
-            </button>
-            <Login onLogin={handleAdminLogin} />
-          </div>
-        </div>
-      )}
-
       {/* Navigation */}
       <nav className="bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-50 shadow-sm">
         <div 
           className="flex items-center gap-4 cursor-pointer group" 
-          onClick={() => {
-            if (user.role === 'Admin') {
-              setCurrentView('home');
-            } else {
-              setShowAdminLogin(true);
-            }
-          }}
-          title={user.role === 'Admin' ? "Go to Home" : "Admin Login"}
+          onClick={() => setCurrentView('home')}
+          title="Go to Home"
         >
           <div className="w-12 h-12 bg-white rounded-2xl shadow-xl shadow-indigo-100/50 flex items-center justify-center p-1 border border-slate-100 group-hover:scale-110 group-hover:shadow-indigo-200/50 transition-all duration-300 overflow-hidden">
             <img 
@@ -153,7 +210,7 @@ const App: React.FC = () => {
           <div>
             <h1 className="text-xl font-black tracking-tight text-slate-900 leading-none">AI B SEM 4</h1>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-              {user.role === 'Admin' ? 'Management Active' : 'Control Center'}
+              {user.role === 'Admin' ? 'Management Active' : 'Student Portal'}
             </p>
           </div>
         </div>
@@ -168,24 +225,22 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-2">
-            {user.role === 'Admin' ? (
-              <>
-                <button 
-                  onClick={() => setCurrentView('admin')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${currentView === 'admin' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}`}
-                >
-                  <ShieldCheck className="w-4 h-4" />
-                  Console
-                </button>
-                <button 
-                  onClick={handleLogout}
-                  className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors"
-                  title="Logout"
-                >
-                  <LogOut className="w-5 h-5" />
-                </button>
-              </>
-            ) : null}
+            {user.role === 'Admin' && (
+              <button 
+                onClick={() => setCurrentView('admin')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${currentView === 'admin' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}`}
+              >
+                <ShieldCheck className="w-4 h-4" />
+                Console
+              </button>
+            )}
+            <button 
+              onClick={handleLogout}
+              className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+              title="Logout"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
           </div>
         </div>
       </nav>

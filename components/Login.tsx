@@ -1,23 +1,37 @@
 
 import React, { useState } from 'react';
-import { ShieldCheck, ArrowRight } from 'lucide-react';
+import { ShieldCheck, ArrowRight, UserCog, Lock, Loader2 } from 'lucide-react';
 
 interface LoginProps {
   onLogin: (id: string, password: string) => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [id, setId] = useState('');
+  const [adminId, setAdminId] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !password) {
-      setError('Both System ID and Password are required');
+    if (!adminId || !password) {
+      setError('Both Admin ID and Password are required');
       return;
     }
-    onLogin(id, password);
+    
+    setLoading(true);
+    setError('');
+
+    // Simulate network delay for effect
+    setTimeout(() => {
+      // Hardcoded Admin Credentials
+      if (adminId === '78945612130' && password === 'Kasi@2006') {
+        onLogin(adminId, password);
+      } else {
+        setError('Invalid Admin ID or Password');
+        setLoading(false);
+      }
+    }, 800);
   };
 
   return (
@@ -33,46 +47,50 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label htmlFor="id" className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">
-              Admin System ID
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">
+              Admin ID
             </label>
-            <input
-              id="id"
-              type="text"
-              autoFocus
-              value={id}
-              onChange={(e) => setId(e.target.value)}
-              placeholder="Enter 11-digit ID"
-              className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                autoFocus
+                value={adminId}
+                onChange={(e) => setAdminId(e.target.value)}
+                placeholder="789456..."
+                className="w-full pl-10 pr-5 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900 font-mono font-bold"
+              />
+              <UserCog className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            </div>
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">
-              Secret Password
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">
+              Password
             </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900"
-            />
+            <div className="relative">
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full pl-10 pr-5 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900"
+              />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            </div>
           </div>
 
           {error && (
-            <p className="text-red-500 text-xs font-semibold bg-red-50 p-2.5 rounded-lg border border-red-100 text-center">
+            <p className="text-red-500 text-xs font-semibold bg-red-50 p-2.5 rounded-lg border border-red-100 text-center animate-pulse">
               {error}
             </p>
           )}
 
           <button
             type="submit"
-            className="w-full bg-slate-900 text-white font-bold py-4 px-6 rounded-xl hover:bg-slate-800 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg"
+            disabled={loading}
+            className="w-full bg-slate-900 text-white font-bold py-4 px-6 rounded-xl hover:bg-slate-800 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
           >
-            Unlock Admin Board
-            <ArrowRight className="w-5 h-5" />
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Unlock Admin Board <ArrowRight className="w-5 h-5" /></>}
           </button>
         </form>
         
