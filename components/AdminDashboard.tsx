@@ -335,9 +335,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onBack }) => {
               if (!newSubjectName.trim()) return;
               await supabase.from('subjects').insert({ name: newSubjectName, category: newSubjectCategory });
               setNewSubjectName(''); fetchData();
-            }} className="flex gap-4 bg-slate-50 p-6 rounded-2xl border">
-              <input value={newSubjectName} onChange={e => setNewSubjectName(e.target.value)} placeholder="Subject Name (e.g. Data Structures)" className="flex-1 p-4 rounded-xl border focus:outline-none focus:border-indigo-500 font-bold shadow-sm" />
-              <select value={newSubjectCategory} onChange={e => setNewSubjectCategory(e.target.value as Category)} className="p-4 rounded-xl border font-bold">
+            }} className="flex gap-4 bg-white p-6 rounded-2xl border shadow-sm">
+              <input 
+                value={newSubjectName} 
+                onChange={e => setNewSubjectName(e.target.value)} 
+                placeholder="Subject Name (e.g. Data Structures)" 
+                className="flex-1 p-4 rounded-xl border focus:outline-none focus:border-indigo-500 font-bold shadow-sm bg-white text-slate-900" 
+              />
+              <select 
+                value={newSubjectCategory} 
+                onChange={e => setNewSubjectCategory(e.target.value as Category)} 
+                className="p-4 rounded-xl border font-bold bg-white text-slate-900"
+              >
                 <option value="Assignments">Assignments</option>
                 <option value="Notes">Notes</option>
                 <option value="Lab Resources">Lab Resources</option>
