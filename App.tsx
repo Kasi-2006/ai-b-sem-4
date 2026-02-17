@@ -89,6 +89,8 @@ const App: React.FC = () => {
         return <FileViewer category="Notes" onBack={() => setCurrentView('home')} />;
       case 'lab-resources':
         return <FileViewer category="Lab Resources" onBack={() => setCurrentView('home')} />;
+      case 'prev-year-qs':
+        return <FileViewer category="Previous Year Question Papers" onBack={() => setCurrentView('home')} />;
       case 'home':
       default:
         return <Dashboard user={user} onSelectView={setCurrentView} />;

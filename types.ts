@@ -12,14 +12,14 @@ export interface UserProfile {
 export interface Subject {
   id: string;
   name: string;
-  category: 'Assignments' | 'Notes' | 'Lab Resources';
+  category: Category;
   created_at: string;
 }
 
 export interface AcademicFile {
   id: string;
   subject_id: string;
-  category: 'Assignments' | 'Notes' | 'Lab Resources';
+  category: Category;
   file_name: string;
   file_url: string;
   uploaded_at: string;
@@ -54,6 +54,6 @@ export interface Announcement {
   created_at: string;
 }
 
-export type Category = 'Assignments' | 'Notes' | 'Lab Resources';
+export type Category = 'Assignments' | 'Notes' | 'Lab Resources' | 'Previous Year Question Papers';
 
-export type ViewState = 'home' | 'assignments' | 'notes' | 'lab-resources' | 'admin';
+export type ViewState = 'home' | 'assignments' | 'notes' | 'lab-resources' | 'prev-year-qs' | 'admin';

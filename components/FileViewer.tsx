@@ -4,7 +4,7 @@ import { supabase } from '../services/supabaseClient';
 import { Subject, AcademicFile, Category } from '../types';
 import { 
   ChevronLeft, Download, FileText, Search, Loader2, 
-  CheckCircle, AlertCircle, Eye, X, Layers
+  CheckCircle, AlertCircle, Eye, X, Layers, History
 } from 'lucide-react';
 
 interface FileViewerProps {
@@ -13,11 +13,12 @@ interface FileViewerProps {
 }
 
 const UNITS = ['Unit 1', 'Unit 2', 'Unit 3', 'Unit 4', 'Unit 5'];
+const EXAM_TYPES = ['Mid', 'Sem'];
 
 const FileViewer: React.FC<FileViewerProps> = ({ category, onBack }) => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
-  const [selectedUnitNo, setSelectedUnitNo] = useState<string>('all');
+  const [selectedTag, setSelectedTag] = useState<string>('all');
   const [files, setFiles] = useState<AcademicFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchingFiles, setFetchingFiles] = useState(false);
@@ -26,6 +27,7 @@ const FileViewer: React.FC<FileViewerProps> = ({ category, onBack }) => {
   const [viewingFile, setViewingFile] = useState<AcademicFile | null>(null);
 
   const isUnitApplicable = category === 'Assignments' || category === 'Notes';
+  const isPYQ = category === 'Previous Year Question Papers';
 
   useEffect(() => {
     const fetchSubjects = async () => {
@@ -46,6 +48,8 @@ const FileViewer: React.FC<FileViewerProps> = ({ category, onBack }) => {
     };
 
     fetchSubjects();
+    setSelectedSubjectId('');
+    setSelectedTag('all');
   }, [category]);
 
   useEffect(() => {
@@ -62,8 +66,8 @@ const FileViewer: React.FC<FileViewerProps> = ({ category, onBack }) => {
         .eq('subject_id', selectedSubjectId)
         .eq('category', category);
 
-      if (isUnitApplicable && selectedUnitNo !== 'all') {
-        query = query.eq('unit_no', selectedUnitNo);
+      if (selectedTag !== 'all') {
+        query = query.eq('unit_no', selectedTag);
       }
 
       const { data, error } = await query
@@ -79,7 +83,7 @@ const FileViewer: React.FC<FileViewerProps> = ({ category, onBack }) => {
     };
 
     fetchFiles();
-  }, [selectedSubjectId, category, selectedUnitNo, isUnitApplicable]);
+  }, [selectedSubjectId, category, selectedTag]);
 
   const logActivity = async (file: AcademicFile, type: string) => {
     try {
@@ -169,8 +173,10 @@ const FileViewer: React.FC<FileViewerProps> = ({ category, onBack }) => {
           <ChevronLeft className="w-6 h-6 text-slate-600" />
         </button>
         <div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">{category} Library</h2>
-          <p className="text-slate-500 text-sm font-medium">Browse and filter academic resources</p>
+          <h2 className="text-3xl font-black text-slate-900 tracking-tight">
+            {isPYQ ? 'Previous Papers' : category} Library
+          </h2>
+          <p className="text-slate-500 text-sm font-medium">Browse academic resources</p>
         </div>
       </div>
 
@@ -205,26 +211,28 @@ const FileViewer: React.FC<FileViewerProps> = ({ category, onBack }) => {
           </div>
         </div>
 
-        {/* Unit Selection (Fixed units 1-5) */}
-        {isUnitApplicable && selectedSubjectId && (
+        {/* Tag Selection (Unit or Exam Type) */}
+        {(isUnitApplicable || isPYQ) && selectedSubjectId && (
           <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-lg animate-in slide-in-from-right-4 duration-300">
-            <label htmlFor="unit-select" className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">
-              Select Unit / Module
+            <label htmlFor="tag-select" className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">
+              {isPYQ ? 'Exam Type' : 'Select Unit / Module'}
             </label>
             <div className="relative">
               <select
-                id="unit-select"
-                value={selectedUnitNo}
-                onChange={(e) => setSelectedUnitNo(e.target.value)}
+                id="tag-select"
+                value={selectedTag}
+                onChange={(e) => setSelectedTag(e.target.value)}
                 className="w-full pl-6 pr-12 py-4 bg-indigo-50 border-2 border-indigo-100 rounded-2xl focus:outline-none focus:border-indigo-500 transition-all appearance-none text-indigo-900 font-black"
               >
-                <option value="all">Show All Units</option>
-                {UNITS.map((u) => (
+                <option value="all">Show All</option>
+                {isPYQ ? EXAM_TYPES.map(e => (
+                  <option key={e} value={e}>{e} Exam</option>
+                )) : UNITS.map((u) => (
                   <option key={u} value={u}>{u}</option>
                 ))}
               </select>
               <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none">
-                <Layers className="w-5 h-5 text-indigo-300" />
+                {isPYQ ? <History className="w-5 h-5 text-indigo-300" /> : <Layers className="w-5 h-5 text-indigo-300" />}
               </div>
             </div>
           </div>
@@ -240,7 +248,7 @@ const FileViewer: React.FC<FileViewerProps> = ({ category, onBack }) => {
           <div className="flex items-center justify-between px-2">
             <div className="flex items-center gap-3">
               <h3 className="text-lg font-black text-slate-800 tracking-tight">
-                {selectedUnitNo === 'all' ? 'All Resources' : `Resources for ${selectedUnitNo}`}
+                {selectedTag === 'all' ? 'All Resources' : `Filter: ${selectedTag}`}
               </h3>
               <span className="bg-slate-200 text-slate-600 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">
                 {files.length} Found
@@ -273,7 +281,7 @@ const FileViewer: React.FC<FileViewerProps> = ({ category, onBack }) => {
                         </h4>
                         {file.unit_no && (
                           <span className="shrink-0 px-2 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-md text-[9px] font-black uppercase tracking-wider flex items-center gap-1">
-                            <Layers className="w-2.5 h-2.5" /> {file.unit_no}
+                            {isPYQ ? <History className="w-2.5 h-2.5" /> : <Layers className="w-2.5 h-2.5" />} {file.unit_no}
                           </span>
                         )}
                       </div>
