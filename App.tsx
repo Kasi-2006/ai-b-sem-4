@@ -9,6 +9,8 @@ import StudentLogin from './components/StudentLogin';
 import { LogOut, ShieldCheck, X, GraduationCap, Megaphone, Loader2 } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
 
+import Chatbot from './components/Chatbot';
+
 const App: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -253,6 +255,7 @@ const App: React.FC = () => {
       <footer className="py-10 border-t border-slate-100 bg-white/50 text-center">
         <p className="text-slate-400 text-sm font-medium">AI B SEM 4 Management System &copy; 2024</p>
       </footer>
+      <Chatbot />
     </div>
   );
 };
