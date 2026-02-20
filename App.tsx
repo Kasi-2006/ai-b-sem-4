@@ -12,8 +12,6 @@ import { supabase } from './services/supabaseClient';
 import Chatbot from './components/Chatbot';
 import ReportModal from './components/ReportModal';
 
-import { APP_LOGO, APP_NAME } from './constants';
-
 const App: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -208,13 +206,13 @@ const App: React.FC = () => {
         >
           <div className="w-12 h-12 bg-white rounded-2xl shadow-xl shadow-indigo-100/50 flex items-center justify-center p-1 border border-slate-100 group-hover:scale-110 group-hover:shadow-indigo-200/50 transition-all duration-300 overflow-hidden">
             <img 
-              src={APP_LOGO} 
-              alt={`${APP_NAME} Logo`} 
+              src="https://img.icons8.com/fluency/96/graduation-cap.png" 
+              alt="AI B SEM 4 Logo" 
               className="w-10 h-10 object-contain"
             />
           </div>
           <div>
-            <h1 className="text-xl font-black tracking-tight text-slate-900 leading-none">{APP_NAME}</h1>
+            <h1 className="text-xl font-black tracking-tight text-slate-900 leading-none">AI B SEM 4</h1>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
               {user.role === 'Admin' ? 'Management Active' : 'Student Portal'}
             </p>
