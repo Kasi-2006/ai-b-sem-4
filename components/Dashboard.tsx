@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { BookOpen, FileText, FlaskConical, ChevronRight, Loader2, RefreshCw, Wifi, AlertTriangle, Database, Terminal, Copy, Check, PartyPopper, Flag, X, Send, History } from 'lucide-react';
 import { UserProfile, ViewState } from '../types';
 import { supabase, checkSupabaseConnection } from '../services/supabaseClient';
+import { APP_LOGO, APP_NAME } from '../constants';
 
 interface DashboardProps {
   user: UserProfile;
@@ -68,6 +69,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSelectView }) => {
       const { error } = await supabase.from('reports').insert({
         description: reportText.trim(),
         reported_by: user.username || 'Guest Student',
+        user_id: user.id,
         status: 'Open'
       });
 
@@ -154,10 +156,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSelectView }) => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-5">
           <div className="w-16 h-16 bg-white rounded-3xl shadow-xl shadow-indigo-100 flex items-center justify-center p-2 border border-slate-100 shrink-0">
-             <img src="https://img.icons8.com/fluency/96/graduation-cap.png" alt="Branding" className="w-full h-full object-contain" />
+             <img src={APP_LOGO} alt="Branding" className="w-full h-full object-contain" />
           </div>
           <div>
-            <h2 className="text-4xl font-black text-slate-900 tracking-tight">AI B SEM 4</h2>
+            <h2 className="text-4xl font-black text-slate-900 tracking-tight">{APP_NAME}</h2>
             <p className="text-slate-500 mt-1 font-medium">Academic Content Management & Intelligence</p>
           </div>
         </div>

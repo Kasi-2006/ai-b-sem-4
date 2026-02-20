@@ -5,7 +5,7 @@ import { Subject, AcademicFile, Category, UserProfile, Report, Announcement, Che
 import Uploader from './Uploader';
 import { 
   ChevronLeft, Plus, Trash2, Loader2, RefreshCcw, Search, ShieldAlert, CheckCircle2,
-  Copy, Check, X, Database, Edit2, Eye, MoreVertical, Layers, FileText, Mail, Flag, Megaphone, Clock, AlertTriangle, Eraser
+  Copy, Check, X, Database, Edit2, Eye, MoreVertical, Layers, FileText, Mail, Flag, Megaphone, Clock, AlertTriangle, Eraser, MessageSquare
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -29,6 +29,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onBack }) => {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [renameValue, setRenameValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Reply Modal State
+  const [replyModalOpen, setReplyModalOpen] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [replyText, setReplyText] = useState('');
 
   const [announcementMsg, setAnnouncementMsg] = useState('');
   const [activeAnnouncement, setActiveAnnouncement] = useState<Announcement | null>(null);
@@ -98,6 +103,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onBack }) => {
     if (!activeAnnouncement) return;
     const { error } = await supabase.from('announcements').update({ is_active: false }).eq('id', activeAnnouncement.id);
     if (!error) fetchData();
+  };
+
+  const handleReplySubmit = async () => {
+    if (!selectedReport || !replyText.trim()) return;
+    setIsProcessing(true);
+    
+    const { error } = await supabase.from('reports').update({
+      reply: replyText.trim(),
+      status: 'Replied'
+    }).eq('id', selectedReport.id);
+
+    if (!error) {
+      setReplyModalOpen(false);
+      setReplyText('');
+      setSelectedReport(null);
+      fetchData();
+    } else {
+      alert(error.message);
+    }
+    setIsProcessing(false);
   };
 
   const handleRename = async () => {
@@ -249,6 +274,56 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onBack }) => {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Reply Modal */}
+      {replyModalOpen && selectedReport && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl border p-8 animate-in zoom-in-95">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-3 bg-indigo-100 text-indigo-600 rounded-2xl">
+                <MessageSquare className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-black text-slate-900">Reply to User</h3>
+                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Replying to {selectedReport.reported_by}</p>
+              </div>
+            </div>
+            
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-6">
+              <p className="text-xs font-black text-slate-400 uppercase mb-2">User Report</p>
+              <p className="text-sm font-medium text-slate-700 italic">"{selectedReport.description}"</p>
+            </div>
+
+            <textarea 
+              autoFocus
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              className="w-full px-6 py-4 bg-slate-50 border rounded-2xl font-medium mb-8 outline-none focus:ring-4 focus:ring-indigo-500/10 min-h-[120px] resize-none"
+              placeholder="Type your reply here..."
+            />
+            
+            <div className="flex gap-4">
+              <button 
+                onClick={() => {
+                  setReplyModalOpen(false);
+                  setSelectedReport(null);
+                  setReplyText('');
+                }} 
+                className="flex-1 py-4 font-bold text-slate-500 hover:bg-slate-100 rounded-2xl transition-all"
+              >
+                Cancel
+              </button>
+              <button 
+                disabled={isProcessing || !replyText.trim()}
+                onClick={handleReplySubmit}
+                className="flex-1 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-lg hover:bg-slate-900 transition-all flex items-center justify-center gap-2"
+              >
+                {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Send Reply'}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -411,11 +486,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onBack }) => {
               <tbody>
                 {reports.map(r => (
                   <tr key={r.id} className="border-b hover:bg-slate-50 transition-colors">
-                    <td className="py-4"><span className={`text-[10px] px-2 py-0.5 rounded font-black uppercase ${r.status === 'Resolved' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>{r.status}</span></td>
-                    <td className="py-4 font-medium text-slate-700">{r.description}</td>
+                    <td className="py-4"><span className={`text-[10px] px-2 py-0.5 rounded font-black uppercase ${r.status === 'Resolved' || r.status === 'Replied' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>{r.status}</span></td>
+                    <td className="py-4 font-medium text-slate-700">
+                      <div>{r.description}</div>
+                      {r.reply && (
+                        <div className="mt-2 text-xs text-slate-500 bg-slate-100 p-2 rounded-lg border border-slate-200">
+                          <span className="font-bold text-indigo-600 uppercase text-[10px] mr-2">Reply:</span>
+                          {r.reply}
+                        </div>
+                      )}
+                    </td>
                     <td className="py-4 text-xs font-bold text-slate-400 uppercase">{r.reported_by}</td>
                     <td className="py-4 text-right">
                       <div className="flex justify-end gap-2">
+                        <button 
+                          onClick={() => {
+                            setSelectedReport(r);
+                            setReplyText(r.reply || '');
+                            setReplyModalOpen(true);
+                          }} 
+                          className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
+                          title="Reply"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                        </button>
                         <button onClick={async () => { await supabase.from('reports').update({ status: r.status === 'Open' ? 'Resolved' : 'Open' }).eq('id', r.id); fetchData(); }} className={`p-2 rounded-lg ${r.status === 'Open' ? 'text-emerald-500 bg-emerald-50' : 'text-slate-300'}`}><CheckCircle2 className="w-4 h-4" /></button>
                         <button onClick={async () => { await supabase.from('reports').delete().eq('id', r.id); fetchData(); }} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
                       </div>

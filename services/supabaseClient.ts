@@ -40,7 +40,8 @@ export const checkSupabaseConnection = async () => {
       }
 
       // Check for Auth/Key issues
-      const isAuthError = tableError.status === 401 || tableError.status === 403 || tableError.message?.includes('JWT');
+      const status = (tableError as any).status;
+      const isAuthError = status === 401 || status === 403 || tableError.message?.includes('JWT');
       if (isAuthError) {
         return { connected: false, error: 'Auth Error: Check your Supabase URL and Anon Key.' };
       }

@@ -42,7 +42,9 @@ export interface Report {
   id: string;
   description: string;
   reported_by: string;
-  status: 'Open' | 'Resolved';
+  user_id: string;
+  reply?: string;
+  status: 'Open' | 'Resolved' | 'Replied';
   timestamp: string;
 }
 

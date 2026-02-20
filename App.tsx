@@ -6,10 +6,13 @@ import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
 import FileViewer from './components/FileViewer';
 import StudentLogin from './components/StudentLogin';
-import { LogOut, ShieldCheck, X, GraduationCap, Megaphone, Loader2 } from 'lucide-react';
+import { LogOut, ShieldCheck, X, GraduationCap, Megaphone, Loader2, MessageSquare } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
 
 import Chatbot from './components/Chatbot';
+import ReportModal from './components/ReportModal';
+
+import { APP_LOGO, APP_NAME } from './constants';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -17,6 +20,7 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('home');
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
 
   // Initialize Auth Listener
   useEffect(() => {
@@ -204,13 +208,13 @@ const App: React.FC = () => {
         >
           <div className="w-12 h-12 bg-white rounded-2xl shadow-xl shadow-indigo-100/50 flex items-center justify-center p-1 border border-slate-100 group-hover:scale-110 group-hover:shadow-indigo-200/50 transition-all duration-300 overflow-hidden">
             <img 
-              src="https://img.icons8.com/fluency/96/graduation-cap.png" 
-              alt="AI B SEM 4 Logo" 
+              src={APP_LOGO} 
+              alt={`${APP_NAME} Logo`} 
               className="w-10 h-10 object-contain"
             />
           </div>
           <div>
-            <h1 className="text-xl font-black tracking-tight text-slate-900 leading-none">AI B SEM 4</h1>
+            <h1 className="text-xl font-black tracking-tight text-slate-900 leading-none">{APP_NAME}</h1>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
               {user.role === 'Admin' ? 'Management Active' : 'Student Portal'}
             </p>
@@ -237,6 +241,13 @@ const App: React.FC = () => {
               </button>
             )}
             <button 
+              onClick={() => setReportModalOpen(true)}
+              className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-xl transition-colors"
+              title="Support & Feedback"
+            >
+              <MessageSquare className="w-5 h-5" />
+            </button>
+            <button 
               onClick={handleLogout}
               className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors"
               title="Logout"
@@ -256,6 +267,13 @@ const App: React.FC = () => {
         <p className="text-slate-400 text-sm font-medium">AI B SEM 4 Management System &copy; 2024</p>
       </footer>
       <Chatbot />
+      {user && (
+        <ReportModal 
+          user={user} 
+          isOpen={reportModalOpen} 
+          onClose={() => setReportModalOpen(false)} 
+        />
+      )}
     </div>
   );
 };
